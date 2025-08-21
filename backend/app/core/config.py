@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     # Google Sheets
     GOOGLE_SHEETS_CREDENTIALS_PATH: str = "credentials/google-service-account.json"
     SPREADSHEET_ID: Optional[str] = None
-    SHEET_NAME: str = "Listings"
+    SHEET_NAME: str = "Listings"  # Default sheet for listings
+    ORDERS_SHEET_NAME: str = "Orders"  # Sheet for orders data
+    SOURCES_SHEET_NAME: str = "Sources"  # Sheet for sources data
     
     # Optimization settings
     MAX_TITLE_LENGTH: int = 80

@@ -4,7 +4,8 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 
 from app.core.config import settings
-from app.api.endpoints import listings, optimize, auth, orders, sources, accounts, dashboard, export, sync
+from app.api.endpoints import listings, optimize, auth, orders, sources, accounts, dashboard, export, sync, drafts, messages, account_sheets
+from app.api.endpoints import settings as settings_router
 from app.db.database import engine
 from app.models import database_models
 
@@ -79,6 +80,30 @@ app.include_router(
     sync.router,
     prefix=f"{settings.API_V1_STR}/sync",
     tags=["sync"]
+)
+
+app.include_router(
+    settings_router.router,
+    prefix=f"{settings.API_V1_STR}/settings",
+    tags=["settings"]
+)
+
+app.include_router(
+    drafts.router,
+    prefix=f"{settings.API_V1_STR}/drafts",
+    tags=["drafts"]
+)
+
+app.include_router(
+    messages.router,
+    prefix=f"{settings.API_V1_STR}/messages",
+    tags=["messages"]
+)
+
+app.include_router(
+    account_sheets.router,
+    prefix=f"{settings.API_V1_STR}/account-sheets",
+    tags=["account-sheets"]
 )
 
 @app.get("/")

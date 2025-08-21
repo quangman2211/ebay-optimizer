@@ -11,6 +11,7 @@ from sqlalchemy import and_
 
 from app.db.database import SessionLocal
 from app.services.google_sheets import GoogleSheetsService
+from app.core.config import settings
 from app.repositories import listing_repo, order_repo, source_repo, account_repo
 from app.models.database_models import (
     Listing, Order, Source, Account, ActivityLog,
@@ -105,7 +106,9 @@ class SyncService:
         # Find new items from SQLite (not in Sheets)
         for sqlite_id, sqlite_item in sqlite_dict.items():
             if sqlite_id not in sheets_dict:
-                if sqlite_item.created_at > last_sync_time:
+                # Handle None created_at by treating as very old date
+                item_created_at = sqlite_item.created_at if sqlite_item.created_at else datetime.min
+                if item_created_at > last_sync_time:
                     merge_result["sqlite_new"].append(sqlite_item)
         
         # Find new items from Sheets (not in SQLite)
@@ -120,7 +123,9 @@ class SyncService:
                 sheets_item = sheets_dict[item_id]
                 
                 # Check if either was modified since last sync
-                sqlite_modified = sqlite_item.updated_at > last_sync_time
+                # Handle None updated_at by treating as very old date
+                item_updated_at = sqlite_item.updated_at if sqlite_item.updated_at else datetime.min
+                sqlite_modified = item_updated_at > last_sync_time
                 sheets_updated = sheets_item.get("Last Updated") or sheets_item.get("updated_at")
                 sheets_modified = False
                 
@@ -174,7 +179,7 @@ class SyncService:
         
         return resolved
     
-    def sync_listings_to_sheets(self, db: Session, user_id: int) -> Dict[str, Any]:
+    def sync_listings_to_sheets(self, db: Session, user_id: int, sheet_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Export SQLite listings to Google Sheets với smart merge
         """
@@ -190,8 +195,9 @@ class SyncService:
             if not sqlite_listings:
                 return {"success": True, "message": "No listings to sync", "exported": 0}
             
-            # Get existing sheets data
-            sheets_listings = self.sheets_service.get_all_listings() or []
+            # Get existing sheets data using specified or configured sheet name
+            target_sheet = sheet_name or getattr(settings, 'SHEET_NAME', 'Listings')
+            sheets_listings = self.sheets_service.get_all_listings(target_sheet) or []
             
             # Detect changes since last sync
             changed_items, last_sync_time = self._detect_changes_since_last_sync(db, user_id, "listings")
@@ -215,32 +221,74 @@ class SyncService:
                     }
                 }
             
-            # Convert SQLite new items to Google Sheets format
+            # Convert SQLite new items to Google Sheets format (20 columns optimized)
             new_sheets_data = []
             for listing in merge_result["sqlite_new"]:
-                sheets_row = {
-                    "ID": listing.id,
-                    "Title": listing.title,
-                    "Description": listing.description or "",
-                    "Category": listing.category or "",
-                    "Price": str(listing.price) if listing.price else "",
-                    "Quantity": str(listing.quantity) if listing.quantity else "0",
-                    "Keywords": ",".join(listing.keywords) if listing.keywords else "",
-                    "Status": listing.status.value,
-                    "Item Specifics": json.dumps(listing.item_specifics) if listing.item_specifics else "{}",
-                    "Last Updated": listing.updated_at.isoformat() if listing.updated_at else ""
-                }
+                sheets_row = [
+                    str(listing.id),                                             # Listing ID
+                    listing.item_id or "",                                      # eBay Item ID
+                    listing.sku or "",                                          # SKU
+                    listing.title or "",                                        # Current Title
+                    listing.optimized_title or "",                              # Optimized Title
+                    listing.description or "",                                  # Description
+                    listing.category or "",                                     # Category
+                    str(listing.price) if listing.price else "",               # Price
+                    str(listing.quantity) if listing.quantity else "0",        # Quantity
+                    listing.condition or "",                                    # Condition
+                    listing.status.value,                                       # Status
+                    ",".join(listing.keywords) if listing.keywords else "",    # Keywords
+                    json.dumps(listing.item_specifics) if listing.item_specifics else "{}", # Item Specifics
+                    str(listing.views) if listing.views else "0",              # Views
+                    str(listing.watchers) if listing.watchers else "0",        # Watchers
+                    str(listing.sold) if listing.sold else "0",                # Sold
+                    str(listing.performance_score) if listing.performance_score else "", # Performance Score
+                    str(listing.seo_score) if listing.seo_score else "",       # SEO Score
+                    listing.created_at.isoformat() if listing.created_at else "", # Created
+                    listing.updated_at.isoformat() if listing.updated_at else ""  # Last Updated
+                ]
                 new_sheets_data.append(sheets_row)
             
-            # Create or update sheet
-            if not self.sheets_service.create_sheet_if_not_exists():
+            # Create or update sheet with listings type
+            if not self.sheets_service.create_sheet_if_not_exists(target_sheet, "listings"):
                 return {"success": False, "message": "Failed to create Google Sheet"}
             
-            # Add new items to sheets (không ghi đè)
+            # Add new items to sheets using batch append
             success_count = 0
-            for sheet_row in new_sheets_data:
-                if self.sheets_service.add_listing(sheet_row):
-                    success_count += 1
+            if new_sheets_data:
+                try:
+                    # Use Google Sheets API to append data
+                    if self.sheets_service.service and self.sheets_service.spreadsheet_id:
+                        body = {
+                            'values': new_sheets_data
+                        }
+                        
+                        # Determine range based on 20 columns (A-T)
+                        range_name = f"{target_sheet}!A:T"
+                        
+                        self.sheets_service.service.spreadsheets().values().append(
+                            spreadsheetId=self.sheets_service.spreadsheet_id,
+                            range=range_name,
+                            valueInputOption='USER_ENTERED',
+                            insertDataOption='INSERT_ROWS',
+                            body=body
+                        ).execute()
+                        
+                        success_count = len(new_sheets_data)
+                except Exception as e:
+                    print(f"Error appending listings: {e}")
+                    # Fallback to individual adds
+                    for sheet_row in new_sheets_data:
+                        # Convert back to dict format for fallback
+                        sheet_dict = {
+                            "id": sheet_row[0],
+                            "title": sheet_row[1],
+                            "description": sheet_row[2],
+                            "category": sheet_row[3],
+                            "price": sheet_row[4],
+                            "quantity": sheet_row[5]
+                        }
+                        if self.sheets_service.add_listing(sheet_dict):
+                            success_count += 1
             
             # Log sync activity
             activity = ActivityLog(
@@ -284,7 +332,7 @@ class SyncService:
             
             return {"success": False, "message": f"Sync failed: {str(e)}"}
     
-    def sync_listings_from_sheets(self, db: Session, user_id: int) -> Dict[str, Any]:
+    def sync_listings_from_sheets(self, db: Session, user_id: int, sheet_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Import Google Sheets listings to SQLite với smart merge
         """
@@ -293,8 +341,9 @@ class SyncService:
             if not self._create_backup(db, user_id, "listings"):
                 return {"success": False, "message": "Backup failed, aborting sync"}
             
-            # Get all listings from Google Sheets
-            sheets_listings = self.sheets_service.get_all_listings()
+            # Get all listings from Google Sheets using specified or configured sheet name
+            target_sheet = sheet_name or getattr(settings, 'SHEET_NAME', 'Listings')
+            sheets_listings = self.sheets_service.get_all_listings(target_sheet)
             
             if not sheets_listings:
                 return {"success": True, "message": "No listings found in Google Sheets", "imported": 0}
@@ -453,11 +502,14 @@ class SyncService:
             except:
                 return False
     
-    def sync_orders_to_sheets(self, db: Session, user_id: int) -> Dict[str, Any]:
+    def sync_orders_to_sheets(self, db: Session, user_id: int, sheet_name: Optional[str] = None) -> Dict[str, Any]:
         """
-        Export orders to dedicated orders sheet
+        Export orders to dedicated orders sheet in Google Sheets
         """
         try:
+            # Get target sheet name from config or parameter
+            target_sheet = sheet_name or getattr(settings, 'ORDERS_SHEET_NAME', 'Orders')
+            
             # Get recent orders (last 30 days to avoid huge exports)
             from datetime import timedelta
             cutoff_date = datetime.now() - timedelta(days=30)
@@ -469,36 +521,187 @@ class SyncService:
                 )
             ).all()
             
-            # Convert to export format
+            if not orders:
+                return {
+                    "success": True,
+                    "message": "No orders to export",
+                    "exported_count": 0
+                }
+            
+            # Create backup
+            if not self._create_backup(db, user_id, "orders"):
+                return {"success": False, "message": "Backup failed, aborting sync"}
+            
+            # Convert to export format for Google Sheets
             export_data = []
             for order in orders:
-                export_row = {
-                    "Order ID": order.id,
-                    "Order Number": order.order_number,
-                    "Customer Name": order.customer_name or "",
-                    "Customer Email": order.customer_email or "",
-                    "Product Name": order.product_name,
-                    "Price": str(order.price_ebay) if order.price_ebay else "",
-                    "Status": order.status.value,
-                    "Order Date": order.order_date.isoformat() if order.order_date else "",
-                    "Tracking Number": order.tracking_number or "",
-                    "Carrier": order.carrier or "",
-                    "Alerts": ",".join(order.alerts) if order.alerts else "",
-                    "Created": order.created_at.isoformat()
-                }
+                export_row = [
+                    str(order.id),
+                    order.order_number or "",
+                    order.customer_name or "",
+                    order.customer_email or "",
+                    order.product_name or "",
+                    str(order.price_ebay) if order.price_ebay else "",
+                    order.status.value,
+                    order.order_date.isoformat() if order.order_date else "",
+                    order.tracking_number or "",
+                    order.carrier or "",
+                    ",".join(order.alerts) if order.alerts else "",
+                    order.created_at.isoformat()
+                ]
                 export_data.append(export_row)
             
-            # TODO: Implement Google Sheets orders export
-            # For now, return success with local data
+            # Export to Google Sheets using the target sheet
+            if self.sheets_service.use_fallback:
+                return {
+                    "success": True,
+                    "message": f"Fallback mode: {len(export_data)} orders prepared for export to {target_sheet}",
+                    "exported_count": len(export_data),
+                    "target_sheet": target_sheet
+                }
             
-            return {
-                "success": True,
-                "message": f"Prepared {len(export_data)} orders for export",
-                "data": export_data
-            }
+            # Create Orders sheet if not exists
+            if not self.sheets_service.create_sheet_if_not_exists(target_sheet, "orders"):
+                return {"success": False, "message": "Failed to create Orders sheet"}
+            
+            # Use Google Sheets API to export
+            try:
+                # Headers are already created by create_sheet_if_not_exists
+                # Just prepare the data rows
+                sheet_data = export_data
+                
+                # Clear existing data (except headers) and write new data
+                if self.sheets_service.service and self.sheets_service.spreadsheet_id:
+                    # Clear data rows only (keep headers)
+                    if len(export_data) > 0:
+                        clear_range = f"{target_sheet}!A2:L"
+                        self.sheets_service.service.spreadsheets().values().clear(
+                            spreadsheetId=self.sheets_service.spreadsheet_id,
+                            range=clear_range
+                        ).execute()
+                        
+                        # Write new data starting from row 2
+                        body = {
+                            'values': sheet_data
+                        }
+                        
+                        self.sheets_service.service.spreadsheets().values().update(
+                            spreadsheetId=self.sheets_service.spreadsheet_id,
+                            range=f"{target_sheet}!A2:L{len(sheet_data) + 1}",
+                            valueInputOption='USER_ENTERED',
+                            body=body
+                        ).execute()
+                
+                return {
+                    "success": True,
+                    "message": f"Successfully exported {len(export_data)} orders to {target_sheet} sheet",
+                    "exported_count": len(export_data),
+                    "target_sheet": target_sheet
+                }
+                
+            except Exception as sheets_error:
+                return {
+                    "success": False,
+                    "message": f"Google Sheets export failed: {str(sheets_error)}",
+                    "target_sheet": target_sheet
+                }
             
         except Exception as e:
             return {"success": False, "message": f"Orders export failed: {str(e)}"}
+    
+    def sync_sources_to_sheets(self, db: Session, user_id: int, sheet_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Export sources to dedicated sources sheet in Google Sheets
+        """
+        try:
+            # Get target sheet name from config or parameter
+            target_sheet = sheet_name or getattr(settings, 'SOURCES_SHEET_NAME', 'Sources')
+            
+            # Get all sources for the user
+            sources = db.query(Source).filter(Source.user_id == user_id).all()
+            
+            if not sources:
+                return {
+                    "success": True,
+                    "message": "No sources to export",
+                    "exported_count": 0
+                }
+            
+            # Create backup
+            if not self._create_backup(db, user_id, "sources"):
+                return {"success": False, "message": "Backup failed, aborting sync"}
+            
+            # Convert to export format for Google Sheets
+            export_data = []
+            for source in sources:
+                export_row = [
+                    str(source.id),
+                    source.name or "",
+                    source.website_url or "",
+                    source.status.value if source.status else "disconnected",
+                    str(source.total_products) if source.total_products else "0",
+                    source.last_sync.isoformat() if source.last_sync else "",
+                    source.created_at.isoformat()
+                ]
+                export_data.append(export_row)
+            
+            # Export to Google Sheets using the target sheet
+            if self.sheets_service.use_fallback:
+                return {
+                    "success": True,
+                    "message": f"Fallback mode: {len(export_data)} sources prepared for export to {target_sheet}",
+                    "exported_count": len(export_data),
+                    "target_sheet": target_sheet
+                }
+            
+            # Create Sources sheet if not exists
+            if not self.sheets_service.create_sheet_if_not_exists(target_sheet, "sources"):
+                return {"success": False, "message": "Failed to create Sources sheet"}
+            
+            # Use Google Sheets API to export
+            try:
+                # Headers are already created by create_sheet_if_not_exists
+                # Just prepare the data rows
+                sheet_data = export_data
+                
+                # Clear existing data (except headers) and write new data
+                if self.sheets_service.service and self.sheets_service.spreadsheet_id:
+                    # Clear data rows only (keep headers)
+                    if len(export_data) > 0:
+                        clear_range = f"{target_sheet}!A2:G"
+                        self.sheets_service.service.spreadsheets().values().clear(
+                            spreadsheetId=self.sheets_service.spreadsheet_id,
+                            range=clear_range
+                        ).execute()
+                        
+                        # Write new data starting from row 2
+                        body = {
+                            'values': sheet_data
+                        }
+                        
+                        self.sheets_service.service.spreadsheets().values().update(
+                            spreadsheetId=self.sheets_service.spreadsheet_id,
+                            range=f"{target_sheet}!A2:G{len(sheet_data) + 1}",
+                            valueInputOption='USER_ENTERED',
+                            body=body
+                        ).execute()
+                
+                return {
+                    "success": True,
+                    "message": f"Successfully exported {len(export_data)} sources to {target_sheet} sheet",
+                    "exported_count": len(export_data),
+                    "target_sheet": target_sheet
+                }
+                
+            except Exception as sheets_error:
+                return {
+                    "success": False,
+                    "message": f"Google Sheets export failed: {str(sheets_error)}",
+                    "target_sheet": target_sheet
+                }
+            
+        except Exception as e:
+            return {"success": False, "message": f"Sources export failed: {str(e)}"}
     
     def full_sync(self, db: Session, user_id: int, direction: str = "bidirectional") -> Dict[str, Any]:
         """
@@ -557,14 +760,21 @@ class SyncService:
                     results["message"] = "All data already in sync - no changes needed"
                 
             elif direction == "to_sheets":
-                # Export to Google Sheets
+                # Export to Google Sheets using configured sheet names
                 listings_export = self.sync_listings_to_sheets(db, user_id)
                 results["details"]["listings_export"] = listings_export
                 
                 orders_export = self.sync_orders_to_sheets(db, user_id)
                 results["details"]["orders_export"] = orders_export
                 
-                results["summary"]["total_new_items"] = listings_export.get("exported_new", 0)
+                sources_export = self.sync_sources_to_sheets(db, user_id)
+                results["details"]["sources_export"] = sources_export
+                
+                results["summary"]["total_new_items"] = (
+                    listings_export.get("exported_new", 0) + 
+                    orders_export.get("exported_count", 0) + 
+                    sources_export.get("exported_count", 0)
+                )
                 
             elif direction == "from_sheets":
                 # Import from Google Sheets

@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ebay-optimizer-backend-prod
+    expose:
+      - "8000"
+    environment:
+      - PROJECT_NAME=eBay Listing Optimizer - econeatly.com
+      - BACKEND_CORS_ORIGINS=https://econeatly.com,https://www.econeatly.com,http://econeatly.com,http://www.econeatly.com
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-this-in-production}
+      - DATABASE_URL=sqlite:///./data/ebay_optimizer.db
+      - GOOGLE_SHEETS_CREDENTIALS_PATH=credentials/google-service-account.json
+      - SPREADSHEET_ID=${SPREADSHEET_ID:-}
+      - API_V1_STR=/api/v1
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DOMAIN=econeatly.com
+    volumes:
+      - ./data:/app/data
+      - ./credentials:/app/credentials:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - econeatly-network
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - REACT_APP_API_URL=https://econeatly.com/api/v1
+    container_name: ebay-optimizer-frontend-prod
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - econeatly-network
+    logging: *default-logging
+
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.econeatly.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - econeatly-network
+    logging: *default-logging
+
+  # Database backup service
+  db-backup:
+    image: alpine:latest
+    container_name: ebay-optimizer-backup
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+    environment:
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+    command: |
+      sh -c '
+        echo "*/30 * * * * cp /data/ebay_optimizer.db /backups/ebay_optimizer_$(date +%Y%m%d_%H%M).db && find /backups -name "*.db" -mtime +7 -delete" | crontab -
+        crond -f
+      '
+    restart: unless-stopped
+    profiles:
+      - backup
+
+networks:
+  econeatly-network:
+    driver: bridge
+    name: econeatly-network
+
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backups
+  ssl:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./ssl
+
+# Production optimizations
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"

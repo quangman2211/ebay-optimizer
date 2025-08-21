@@ -18,9 +18,9 @@ from app.db.database import Base
 class ListingStatusEnum(str, enum.Enum):
     DRAFT = "draft"
     ACTIVE = "active" 
-    OPTIMIZED = "optimized"
+    ENDED = "ended"
+    SOLD = "sold"
     ARCHIVED = "archived"
-    PENDING = "pending"
 
 
 class OrderStatusEnum(str, enum.Enum):
@@ -46,6 +46,40 @@ class SourceStatusEnum(str, enum.Enum):
     SYNCING = "syncing"
 
 
+class DraftStatusEnum(str, enum.Enum):
+    DRAFT = "draft"
+    READY = "ready"
+    SCHEDULED = "scheduled"
+    LISTED = "listed"
+
+
+class ImageStatusEnum(str, enum.Enum):
+    PENDING = "pending"
+    EDITED = "edited"
+    APPROVED = "approved"
+
+
+class MessageTypeEnum(str, enum.Enum):
+    QUESTION = "question"
+    SHIPPING_INFO = "shipping_info"
+    RETURN_REQUEST = "return_request"
+    GENERAL = "general"
+
+
+class MessagePriorityEnum(str, enum.Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class SheetTypeEnum(str, enum.Enum):
+    LISTINGS = "listings"
+    ORDERS = "orders"
+    MESSAGES = "messages"
+    DRAFTS = "drafts"
+
+
 # Database Models
 class User(Base):
     """User authentication và management"""
@@ -64,6 +98,8 @@ class User(Base):
     # Relationships
     listings = relationship("Listing", back_populates="user")
     accounts = relationship("Account", back_populates="user")
+    draft_listings = relationship("DraftListing", back_populates="user")
+    messages = relationship("Message", back_populates="user")
 
 
 class Listing(Base):
@@ -72,21 +108,25 @@ class Listing(Base):
 
     id = Column(String(100), primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # NEW: Multi-account
+    source_product_id = Column(String(100), ForeignKey("source_products.id"), nullable=True)  # NEW: Link to source
+    draft_listing_id = Column(String(100), ForeignKey("draft_listings.id"), nullable=True)  # NEW: Link to draft
     
-    # Basic listing info
+    # eBay Info
+    ebay_item_id = Column(String(50), unique=True, nullable=True, index=True)  # eBay Item ID (unique per listing)
     title = Column(String(80), nullable=False)
     description = Column(Text, nullable=True)
     category = Column(String(100), nullable=True)
     price = Column(Float, nullable=True)
     quantity = Column(Integer, default=0)
-    
-    # eBay specific
-    item_id = Column(String(50), nullable=True, index=True)  # eBay Item ID
     sku = Column(String(100), nullable=True)
     condition = Column(String(50), nullable=True)
     
-    # Status & metadata
+    # Status
     status = Column(SQLEnum(ListingStatusEnum), default=ListingStatusEnum.DRAFT)
+    listing_type = Column(String(20), default='fixed')  # fixed, auction
+    
+    # Metadata
     keywords = Column(JSON, nullable=True)  # List of keywords
     item_specifics = Column(JSON, nullable=True)  # Key-value pairs
     
@@ -102,6 +142,9 @@ class Listing(Base):
     seo_score = Column(Float, nullable=True)
     optimization_notes = Column(Text, nullable=True)
     
+    # Links
+    ebay_url = Column(String(500), nullable=True)  # Direct link to eBay listing
+    
     # Google Sheets integration
     sheet_row = Column(Integer, nullable=True)
     
@@ -112,13 +155,19 @@ class Listing(Base):
     
     # Relationships
     user = relationship("User", back_populates="listings")
+    account = relationship("Account", back_populates="listings")
+    source_product = relationship("SourceProduct", back_populates="listings")
+    draft_listing = relationship("DraftListing", back_populates="listing", uselist=False)
     orders = relationship("Order", back_populates="listing")
+    messages = relationship("Message", back_populates="listing")
     
     # Indexes
     __table_args__ = (
         Index('idx_listing_user_status', 'user_id', 'status'),
+        Index('idx_listing_account', 'account_id', 'status'),
         Index('idx_listing_category', 'category'),
         Index('idx_listing_performance', 'performance_score'),
+        Index('idx_listing_source_product', 'source_product_id'),
     )
 
 
@@ -127,31 +176,30 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(String(100), primary_key=True, index=True)
-    listing_id = Column(String(100), ForeignKey("listings.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)  # NEW: Multi-account
+    listing_id = Column(String(100), ForeignKey("listings.id"), nullable=True)
     
-    # eBay order info
+    # eBay Order Info
+    ebay_order_id = Column(String(50), unique=True, nullable=True)
+    ebay_transaction_id = Column(String(50), nullable=True)
     order_number = Column(String(50), nullable=False, index=True)
-    item_id = Column(String(50), nullable=True)
-    transaction_id = Column(String(50), nullable=True)
     
-    # Customer info
+    # Customer Info
     customer_name = Column(String(255), nullable=True)
     customer_email = Column(String(255), nullable=True)
-    customer_phone = Column(String(50), nullable=True)
-    customer_type = Column(String(50), nullable=True)  # New/Repeat/VIP
-    username_ebay = Column(String(100), nullable=True)
+    customer_username = Column(String(100), nullable=True)
     
-    # Product info
+    # Product Info
     product_name = Column(String(255), nullable=False)
-    product_link = Column(Text, nullable=True)
-    product_option = Column(String(255), nullable=True)
+    quantity = Column(Integer, default=1)
     
     # Financial
     price_ebay = Column(Float, nullable=True)
-    price_cost = Column(Float, nullable=True) 
+    shipping_cost = Column(Float, nullable=True)
+    total_amount = Column(Float, nullable=True)
+    ebay_fees = Column(Float, nullable=True)
     net_profit = Column(Float, nullable=True)
-    fees = Column(Float, nullable=True)
     
     # Shipping & address
     shipping_address = Column(Text, nullable=True)
@@ -181,14 +229,18 @@ class Order(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    listing = relationship("Listing", back_populates="orders")
     user = relationship("User")
+    account = relationship("Account", back_populates="orders")
+    listing = relationship("Listing", back_populates="orders")
+    messages = relationship("Message", back_populates="order")
     
     # Indexes
     __table_args__ = (
         Index('idx_order_user_status', 'user_id', 'status'),
+        Index('idx_order_account', 'account_id', 'order_date'),
         Index('idx_order_date', 'order_date'),
         Index('idx_order_tracking', 'tracking_number'),
+        Index('idx_order_ebay', 'ebay_order_id', 'ebay_transaction_id'),
     )
 
 
@@ -250,39 +302,33 @@ class SourceProduct(Base):
     id = Column(String(100), primary_key=True, index=True)
     source_id = Column(String(100), ForeignKey("sources.id"), nullable=False)
     
-    # Product info
-    name = Column(String(255), nullable=False)
+    # Product Info (Import từ nhà cung cấp)
+    title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    price = Column(Float, nullable=False)
     category = Column(String(100), nullable=True)
     brand = Column(String(100), nullable=True)
-    model = Column(String(100), nullable=True)
     sku = Column(String(100), nullable=True)
     
-    # Pricing
-    source_price = Column(Float, nullable=False)
-    suggested_price = Column(Float, nullable=True)
-    market_price = Column(Float, nullable=True)
+    # Google Drive Images (Original từ supplier)
+    gdrive_folder_url = Column(String(500), nullable=True)  # Link to Google Drive folder
+    image_notes = Column(Text, nullable=True)  # "6 images, need watermark removal"
+    
+    # Business
     profit_margin = Column(Float, nullable=True)
+    suggested_ebay_price = Column(Float, nullable=True)
     
     # Availability
     in_stock = Column(Boolean, default=True)
     stock_quantity = Column(Integer, default=0)
-    min_order_quantity = Column(Integer, default=1)
     
-    # URLs & images
-    source_url = Column(String(500), nullable=True)
-    image_urls = Column(JSON, nullable=True)  # List of image URLs
+    # Status
+    is_approved = Column(Boolean, default=False)  # Đã duyệt để tạo draft
     
-    # Metadata
-    specifications = Column(JSON, nullable=True)
-    tags = Column(JSON, nullable=True)
-    weight = Column(Float, nullable=True)
-    dimensions = Column(JSON, nullable=True)
-    
-    # Performance
-    views = Column(Integer, default=0)
-    conversions = Column(Integer, default=0)
-    roi = Column(Float, nullable=True)
+    # Relationships
+    source = relationship("Source", back_populates="products")
+    draft_listings = relationship("DraftListing", back_populates="source_product")
+    listings = relationship("Listing", back_populates="source_product")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -306,21 +352,22 @@ class Account(Base):
     email = Column(String(255), nullable=False)
     
     # Account details
-    status = Column(SQLEnum(AccountStatusEnum), default=AccountStatusEnum.ACTIVE)
+    status = Column(String(20), default='active')
     country = Column(String(10), nullable=True)  # Country code
     site_id = Column(Integer, nullable=True)  # eBay site ID
     store_name = Column(String(255), nullable=True)
     store_url = Column(String(500), nullable=True)
     
-    # Authentication
+    # Google Sheets Integration
+    sheet_id = Column(String(100), nullable=True)  # Google Sheet ID cho account này
+    sheet_url = Column(String(500), nullable=True)
+    
+    # eBay API (optional)
     access_token = Column(Text, nullable=True)
     refresh_token = Column(Text, nullable=True)
     token_expires_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Performance metrics
-    health_score = Column(Float, default=0.0)  # 0-100
-    feedback_score = Column(Float, default=0.0)
-    feedback_count = Column(Integer, default=0)
+    # Basic Metrics
     total_listings = Column(Integer, default=0)
     active_listings = Column(Integer, default=0)
     total_sales = Column(Integer, default=0)
@@ -348,11 +395,15 @@ class Account(Base):
     
     # Relationships
     user = relationship("User", back_populates="accounts")
+    listings = relationship("Listing", back_populates="account")
+    orders = relationship("Order", back_populates="account")
+    draft_listings = relationship("DraftListing", back_populates="account")
+    messages = relationship("Message", back_populates="account")
+    account_sheets = relationship("AccountSheet", back_populates="account")
     
     # Indexes
     __table_args__ = (
         Index('idx_account_user_status', 'user_id', 'status'),
-        Index('idx_account_health', 'health_score'),
         Index('idx_account_country', 'country'),
     )
 
@@ -422,4 +473,151 @@ class ActivityLog(Base):
         Index('idx_activity_user_date', 'user_id', 'created_at'),
         Index('idx_activity_entity', 'entity_type', 'entity_id'),
         Index('idx_activity_action', 'action'),
+    )
+
+
+# ===========================================
+# NEW TABLES for Multi-Account Support
+# ===========================================
+
+class DraftListing(Base):
+    """Listings chuẩn bị"""
+    __tablename__ = "draft_listings"
+
+    id = Column(String(100), primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    source_product_id = Column(String(100), ForeignKey("source_products.id"), nullable=True)
+    
+    # Draft Info (Customized per account)
+    title = Column(String(80), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(100), nullable=True)
+    price = Column(Float, nullable=True)
+    quantity = Column(Integer, default=1)
+    condition = Column(String(50), default='new')
+    
+    # Google Drive Images (Edited by employees)
+    gdrive_folder_url = Column(String(500), nullable=True)  # Link to edited images folder
+    image_status = Column(SQLEnum(ImageStatusEnum), default=ImageStatusEnum.PENDING)
+    edited_by = Column(String(100), nullable=True)  # Tên nhân viên edit
+    edit_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # eBay Settings
+    listing_type = Column(String(20), default='fixed')
+    duration_days = Column(Integer, default=30)
+    start_price = Column(Float, nullable=True)  # For auctions
+    buy_it_now_price = Column(Float, nullable=True)
+    
+    # Business
+    cost_price = Column(Float, nullable=True)
+    profit_margin = Column(Float, nullable=True)
+    
+    # Status
+    status = Column(SQLEnum(DraftStatusEnum), default=DraftStatusEnum.DRAFT)
+    scheduled_date = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User")
+    account = relationship("Account", back_populates="draft_listings")
+    source_product = relationship("SourceProduct", back_populates="draft_listings")
+    listing = relationship("Listing", back_populates="draft_listing", uselist=False)
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_draft_user_status', 'user_id', 'status'),
+        Index('idx_draft_account', 'account_id'),
+        Index('idx_draft_source_product', 'source_product_id'),
+        Index('idx_draft_image_status', 'image_status'),
+    )
+
+
+class Message(Base):
+    """Tin nhắn eBay"""
+    __tablename__ = "messages"
+
+    id = Column(String(100), primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    listing_id = Column(String(100), ForeignKey("listings.id"), nullable=True)
+    order_id = Column(String(100), ForeignKey("orders.id"), nullable=True)
+    
+    # Message Info
+    ebay_message_id = Column(String(50), nullable=True)
+    message_type = Column(SQLEnum(MessageTypeEnum), default=MessageTypeEnum.GENERAL)
+    subject = Column(String(255), nullable=True)
+    message_text = Column(Text, nullable=True)
+    
+    # Participants
+    sender_username = Column(String(100), nullable=True)
+    recipient_username = Column(String(100), nullable=True)
+    direction = Column(String(10), nullable=True)  # inbound, outbound
+    
+    # Status
+    is_read = Column(Boolean, default=False)
+    is_replied = Column(Boolean, default=False)
+    priority = Column(SQLEnum(MessagePriorityEnum), default=MessagePriorityEnum.NORMAL)
+    
+    # Dates
+    message_date = Column(DateTime(timezone=True), nullable=True)
+    reply_by_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("User")
+    account = relationship("Account", back_populates="messages")
+    listing = relationship("Listing", back_populates="messages")
+    order = relationship("Order", back_populates="messages")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_message_user_date', 'user_id', 'message_date'),
+        Index('idx_message_account', 'account_id', 'is_read'),
+        Index('idx_message_priority', 'priority', 'is_replied'),
+        Index('idx_message_type', 'message_type'),
+    )
+
+
+class AccountSheet(Base):
+    """Mapping Account với Google Sheets"""
+    __tablename__ = "account_sheets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    
+    # Google Sheets Info
+    sheet_id = Column(String(100), nullable=False)
+    sheet_name = Column(String(255), nullable=False)
+    sheet_url = Column(String(500), nullable=True)
+    
+    # Sheet Structure
+    sheet_type = Column(SQLEnum(SheetTypeEnum), nullable=False)
+    headers = Column(JSON, nullable=True)  # ["Column1", "Column2", ...]
+    last_row = Column(Integer, default=1)
+    
+    # Sync Info
+    auto_sync = Column(Boolean, default=True)
+    sync_frequency = Column(Integer, default=60)  # minutes
+    last_sync = Column(DateTime(timezone=True), nullable=True)
+    sync_status = Column(String(20), default='pending')
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    account = relationship("Account", back_populates="account_sheets")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_sheet_account_type', 'account_id', 'sheet_type', unique=True),
+        Index('idx_sheet_sync', 'auto_sync', 'last_sync'),
     )

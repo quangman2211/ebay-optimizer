@@ -141,6 +141,12 @@ export const settingsAPI = {
   updateApiConfig: (data) => api.put('/settings/api-config', data),
   getNotificationSettings: () => api.get('/settings/notifications'),
   updateNotificationSettings: (data) => api.put('/settings/notifications', data),
+  
+  // Google Sheets specific APIs
+  getGoogleSheetsConfig: () => api.get('/settings'),
+  updateGoogleSheetsConfig: (data) => api.put('/settings/google-sheets', data),
+  testGoogleSheetsConnection: (data) => api.post('/settings/google-sheets/test-connection', data),
+  getGoogleSheetsStatus: () => api.get('/settings/google-sheets/status'),
 };
 
 // Dashboard APIs

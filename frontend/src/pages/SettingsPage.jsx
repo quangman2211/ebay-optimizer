@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -20,12 +20,15 @@ import {
   Code as CodeIcon,
   Notifications as NotificationsIcon,
   Settings as SettingsIcon,
+  TableChart as GoogleSheetsIcon,
 } from '@mui/icons-material';
 import MainLayout from '../components/Layout/MainLayout';
+import { settingsAPI } from '../services/api';
 
 const SettingsPage = () => {
   const [apiConfigOpen, setApiConfigOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [googleSheetsOpen, setGoogleSheetsOpen] = useState(false);
   
   // API Configuration state
   const [apiConfig, setApiConfig] = useState({
@@ -45,6 +48,47 @@ const SettingsPage = () => {
     performanceReports: false,
   });
 
+  // Google Sheets settings state
+  const [googleSheetsConfig, setGoogleSheetsConfig] = useState({
+    spreadsheetId: '',
+    listingsSheetName: 'Listings',
+    ordersSheetName: 'Orders',
+    sourcesSheetName: 'Sources',
+    connectionStatus: 'disconnected', // disconnected, connecting, connected, error
+  });
+
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load settings on component mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await settingsAPI.getGoogleSheetsConfig();
+      const data = response.data;
+      
+      if (data.google_sheets) {
+        setGoogleSheetsConfig({
+          spreadsheetId: data.google_sheets.spreadsheet_id || '',
+          listingsSheetName: data.google_sheets.listings_sheet_name || 'Listings',
+          ordersSheetName: data.google_sheets.orders_sheet_name || 'Orders',
+          sourcesSheetName: data.google_sheets.sources_sheet_name || 'Sources',
+          connectionStatus: data.google_sheets.connection_status || 'disconnected'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      alert('Lỗi tải cấu hình. Sử dụng giá trị mặc định.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleApiConfigSave = () => {
     // Simulate API save
     alert('Cấu hình API đã được lưu thành công!');
@@ -56,6 +100,75 @@ const SettingsPage = () => {
     alert('Cài đặt thông báo đã được lưu thành công!');
     setNotificationOpen(false);
   };
+
+  const handleGoogleSheetsSave = async () => {
+    try {
+      setSaving(true);
+      
+      const configData = {
+        spreadsheet_id: googleSheetsConfig.spreadsheetId,
+        listings_sheet_name: googleSheetsConfig.listingsSheetName,
+        orders_sheet_name: googleSheetsConfig.ordersSheetName,
+        sources_sheet_name: googleSheetsConfig.sourcesSheetName
+      };
+      
+      const response = await settingsAPI.updateGoogleSheetsConfig(configData);
+      
+      // Update connection status from response
+      if (response.data.connection_status) {
+        setGoogleSheetsConfig(prev => ({
+          ...prev,
+          connectionStatus: response.data.connection_status
+        }));
+      }
+      
+      alert('Cấu hình Google Sheets đã được lưu thành công!');
+      setGoogleSheetsOpen(false);
+    } catch (error) {
+      console.error('Error saving Google Sheets config:', error);
+      alert('Lỗi lưu cấu hình Google Sheets: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    try {
+      setGoogleSheetsConfig(prev => ({ ...prev, connectionStatus: 'connecting' }));
+      
+      const configData = {
+        spreadsheet_id: googleSheetsConfig.spreadsheetId,
+        listings_sheet_name: googleSheetsConfig.listingsSheetName,
+        orders_sheet_name: googleSheetsConfig.ordersSheetName,
+        sources_sheet_name: googleSheetsConfig.sourcesSheetName
+      };
+      
+      const response = await settingsAPI.testGoogleSheetsConnection(configData);
+      
+      const connectionStatus = response.data.connection_status;
+      setGoogleSheetsConfig(prev => ({ ...prev, connectionStatus }));
+      
+      if (connectionStatus === 'connected') {
+        alert('Kết nối Google Sheets thành công!');
+      } else {
+        alert('Lỗi kết nối Google Sheets. Vui lòng kiểm tra lại cấu hình.');
+      }
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      setGoogleSheetsConfig(prev => ({ ...prev, connectionStatus: 'error' }));
+      alert('Lỗi kiểm tra kết nối: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <Typography>Đang tải cấu hình...</Typography>
+        </Box>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -84,7 +197,7 @@ const SettingsPage = () => {
         <CardContent>
           <Grid container spacing={3}>
             {/* API Configuration Card */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <Card 
                 sx={{ 
                   height: '100%',
@@ -120,8 +233,46 @@ const SettingsPage = () => {
               </Card>
             </Grid>
 
+            {/* Google Sheets Card */}
+            <Grid item xs={12} md={4}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    boxShadow: 2,
+                  }
+                }}
+                onClick={() => setGoogleSheetsOpen(true)}
+              >
+                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                  <GoogleSheetsIcon 
+                    sx={{ 
+                      fontSize: 48, 
+                      color: 'success.main', 
+                      mb: 2 
+                    }} 
+                  />
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    Google Sheets
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Cấu hình đồng bộ dữ liệu với Google Sheets
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    size="small"
+                    color="success"
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Cài đặt
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
             {/* Notifications Card */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <Card 
                 sx={{ 
                   height: '100%',
@@ -357,6 +508,137 @@ const SettingsPage = () => {
             sx={{ textTransform: 'none' }}
           >
             Lưu cài đặt
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Google Sheets Configuration Dialog */}
+      <Dialog 
+        open={googleSheetsOpen} 
+        onClose={() => setGoogleSheetsOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <GoogleSheetsIcon sx={{ mr: 1 }} />
+            Cấu hình Google Sheets
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Cấu hình kết nối với Google Sheets để đồng bộ dữ liệu listings, đơn hàng và sources.
+          </Alert>
+
+          {googleSheetsConfig.connectionStatus === 'connected' && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              ✅ Đã kết nối thành công với Google Sheets
+            </Alert>
+          )}
+
+          {googleSheetsConfig.connectionStatus === 'error' && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              ❌ Lỗi kết nối Google Sheets. Vui lòng kiểm tra lại cấu hình.
+            </Alert>
+          )}
+          
+          <TextField
+            fullWidth
+            label="Spreadsheet ID"
+            value={googleSheetsConfig.spreadsheetId}
+            onChange={(e) => setGoogleSheetsConfig({ 
+              ...googleSheetsConfig, 
+              spreadsheetId: e.target.value,
+              connectionStatus: 'disconnected'
+            })}
+            margin="normal"
+            placeholder="Nhập ID của Google Spreadsheet"
+            helperText="Ví dụ: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+          />
+
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+              Tên các Sheet trong Spreadsheet
+            </Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Sheet Listings"
+                  value={googleSheetsConfig.listingsSheetName}
+                  onChange={(e) => setGoogleSheetsConfig({ 
+                    ...googleSheetsConfig, 
+                    listingsSheetName: e.target.value 
+                  })}
+                  placeholder="Listings"
+                />
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Sheet Orders"
+                  value={googleSheetsConfig.ordersSheetName}
+                  onChange={(e) => setGoogleSheetsConfig({ 
+                    ...googleSheetsConfig, 
+                    ordersSheetName: e.target.value 
+                  })}
+                  placeholder="Orders"
+                />
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Sheet Sources"
+                  value={googleSheetsConfig.sourcesSheetName}
+                  onChange={(e) => setGoogleSheetsConfig({ 
+                    ...googleSheetsConfig, 
+                    sourcesSheetName: e.target.value 
+                  })}
+                  placeholder="Sources"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+              📝 Hướng dẫn cấu hình:
+            </Typography>
+            <Typography variant="body2" component="div" sx={{ lineHeight: 1.6 }}>
+              1. Tạo Google Spreadsheet mới hoặc sử dụng spreadsheet có sẵn<br/>
+              2. Copy ID của spreadsheet từ URL (phần giữa /d/ và /edit)<br/>
+              3. Tạo các sheet với tên tương ứng: Listings, Orders, Sources<br/>
+              4. Chia sẻ spreadsheet với service account email<br/>
+              5. Nhấn "Kiểm tra kết nối" để xác thực
+            </Typography>
+          </Box>
+
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+            <Button 
+              onClick={handleTestConnection}
+              variant="outlined"
+              disabled={googleSheetsConfig.connectionStatus === 'connecting'}
+              sx={{ textTransform: 'none' }}
+            >
+              {googleSheetsConfig.connectionStatus === 'connecting' ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGoogleSheetsOpen(false)}>
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleGoogleSheetsSave} 
+            variant="contained"
+            color="success"
+            disabled={saving}
+            sx={{ textTransform: 'none' }}
+          >
+            {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -90,7 +90,7 @@ class GoogleSheetsService:
             }
         ]
     
-    def get_all_listings(self) -> List[Dict[str, Any]]:
+    def get_all_listings(self, sheet_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch all listings from Google Sheets or fallback data"""
         if self.use_fallback:
             return self.fallback_data.copy()
@@ -98,8 +98,11 @@ class GoogleSheetsService:
         if not self.service or not self.spreadsheet_id:
             return self.fallback_data.copy()
         
+        # Use provided sheet name or default
+        target_sheet = sheet_name or self.sheet_name
+        
         try:
-            range_name = f"{self.sheet_name}!A:J"
+            range_name = f"{target_sheet}!A:T"  # Optimized to 20 columns
             result = self.service.spreadsheets().values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name
@@ -124,29 +127,39 @@ class GoogleSheetsService:
                     if i < len(row):
                         value = row[i]
                         
-                        # Map header to field name
+                        # Map header to field name (optimized mapping)
                         field_map = {
-                            'ID': 'id',
-                            'Title': 'title',
+                            'Listing ID': 'id',
+                            'eBay Item ID': 'item_id',
+                            'SKU': 'sku',
+                            'Current Title': 'title',
+                            'Optimized Title': 'optimized_title',
                             'Description': 'description',
                             'Category': 'category',
                             'Price': 'price',
                             'Quantity': 'quantity',
-                            'Keywords': 'keywords',
+                            'Condition': 'condition',
                             'Status': 'status',
+                            'Keywords': 'keywords',
                             'Item Specifics': 'item_specifics',
+                            'Views': 'views',
+                            'Watchers': 'watchers',
+                            'Sold': 'sold',
+                            'Performance Score': 'performance_score',
+                            'SEO Score': 'seo_score',
+                            'Created': 'created_at',
                             'Last Updated': 'updated_at'
                         }
                         
                         field_name = field_map.get(header, header.lower().replace(' ', '_'))
                         
                         # Parse special fields
-                        if field_name == 'price' and value:
+                        if field_name in ['price', 'performance_score', 'seo_score'] and value:
                             try:
                                 listing_dict[field_name] = float(value.replace('$', '').replace(',', ''))
                             except:
                                 listing_dict[field_name] = 0.0
-                        elif field_name == 'quantity' and value:
+                        elif field_name in ['quantity', 'views', 'watchers', 'sold'] and value:
                             try:
                                 listing_dict[field_name] = int(value)
                             except:
@@ -339,10 +352,12 @@ class GoogleSheetsService:
             'failed': failed_count
         }
     
-    def create_sheet_if_not_exists(self) -> bool:
+    def create_sheet_if_not_exists(self, sheet_name: Optional[str] = None, sheet_type: str = "listings") -> bool:
         """Create the sheet with headers if it doesn't exist"""
         if not self.service or not self.spreadsheet_id:
             return False
+        
+        target_sheet = sheet_name or self.sheet_name
         
         try:
             # Check if sheet exists
@@ -351,7 +366,7 @@ class GoogleSheetsService:
             ).execute()
             
             sheet_exists = any(
-                sheet['properties']['title'] == self.sheet_name 
+                sheet['properties']['title'] == target_sheet 
                 for sheet in spreadsheet.get('sheets', [])
             )
             
@@ -361,7 +376,7 @@ class GoogleSheetsService:
                     'requests': [{
                         'addSheet': {
                             'properties': {
-                                'title': self.sheet_name
+                                'title': target_sheet
                             }
                         }
                     }]
@@ -371,26 +386,228 @@ class GoogleSheetsService:
                     spreadsheetId=self.spreadsheet_id,
                     body=request_body
                 ).execute()
+                
+                print(f"✅ Created new sheet: {target_sheet}")
+            
+            # Get appropriate headers based on sheet type
+            headers = self._get_sheet_headers(sheet_type)
             
             # Add headers
-            headers = [[
-                'ID', 'Title', 'Description', 'Category', 'Price', 
-                'Quantity', 'Keywords', 'Status', 'Item Specifics', 'Last Updated'
-            ]]
-            
             body = {
-                'values': headers
+                'values': [headers]
             }
+            
+            # Determine range based on header count
+            last_column = chr(ord('A') + len(headers) - 1)
+            range_name = f"{target_sheet}!A1:{last_column}1"
             
             self.service.spreadsheets().values().update(
                 spreadsheetId=self.spreadsheet_id,
-                range=f"{self.sheet_name}!A1:J1",
+                range=range_name,
                 valueInputOption='USER_ENTERED',
                 body=body
             ).execute()
             
+            print(f"✅ Headers added to {target_sheet}: {len(headers)} columns")
             return True
             
         except HttpError as error:
-            print(f"An error occurred creating sheet: {error}")
+            print(f"An error occurred creating sheet {target_sheet}: {error}")
             return False
+    
+    def _get_sheet_headers(self, sheet_type: str) -> List[str]:
+        """Get appropriate headers for different sheet types"""
+        if sheet_type == "listings":
+            return [
+                'Listing ID', 'eBay Item ID', 'SKU', 'Current Title', 'Optimized Title', 
+                'Description', 'Category', 'Price', 'Quantity', 'Condition', 'Status', 
+                'Keywords', 'Item Specifics', 'Views', 'Watchers', 'Sold', 
+                'Performance Score', 'SEO Score', 'Created', 'Last Updated'
+            ]
+        elif sheet_type == "orders":
+            return [
+                "Order ID", "Order Number", "Customer Name", "Customer Email", 
+                "Product Name", "Price", "Status", "Order Date", 
+                "Tracking Number", "Carrier", "Alerts", "Created"
+            ]
+        elif sheet_type == "sources":
+            return [
+                "Source ID", "Name", "URL", "Status", 
+                "Products Count", "Last Sync", "Created"
+            ]
+        elif sheet_type == "accounts":
+            return [
+                "Account ID", "Name", "Type", "Store Name", "Status", 
+                "Health Score", "Usage Limit", "Current Listings", "Revenue", "Last Activity"
+            ]
+        else:
+            # Default to listings headers
+            return [
+                'ID', 'Title', 'Description', 'Category', 'Price', 
+                'Quantity', 'Keywords', 'Status', 'Item Specifics', 'Last Updated'
+            ]
+    
+    def create_all_required_sheets(self) -> Dict[str, bool]:
+        """Create all required sheets for the application"""
+        if not self.service or not self.spreadsheet_id:
+            return {"error": "No Google Sheets service available"}
+        
+        results = {}
+        
+        # Create Listings sheet (if not exists)
+        listings_sheet = getattr(settings, 'SHEET_NAME', 'Listings')
+        results['listings'] = self.create_sheet_if_not_exists(listings_sheet, "listings")
+        
+        # Create Orders sheet
+        orders_sheet = getattr(settings, 'ORDERS_SHEET_NAME', 'Orders')
+        results['orders'] = self.create_sheet_if_not_exists(orders_sheet, "orders")
+        
+        # Create Sources sheet
+        sources_sheet = getattr(settings, 'SOURCES_SHEET_NAME', 'Sources') 
+        results['sources'] = self.create_sheet_if_not_exists(sources_sheet, "sources")
+        
+        return results
+    
+    def get_all_orders(self, sheet_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch all orders from Google Sheets"""
+        target_sheet = sheet_name or getattr(settings, 'ORDERS_SHEET_NAME', 'Orders')
+        
+        if self.use_fallback:
+            # Return mock orders data
+            return [
+                {
+                    "id": "order_001",
+                    "customer_name": "John Doe",
+                    "product_name": "Sample Product",
+                    "amount": 99.99,
+                    "status": "completed",
+                    "order_date": datetime.now().isoformat(),
+                    "sheet_row": 2
+                }
+            ]
+            
+        if not self.service or not self.spreadsheet_id:
+            return []
+        
+        try:
+            range_name = f"{target_sheet}!A:K"  # Orders may have more columns
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            values = result.get('values', [])
+            if not values:
+                return []
+            
+            # Parse orders data similar to listings
+            headers = values[0]
+            orders = []
+            
+            for row_index, row in enumerate(values[1:], start=2):
+                order_dict = {'sheet_row': row_index}
+                
+                for i, header in enumerate(headers):
+                    if i < len(row):
+                        value = row[i]
+                        field_map = {
+                            'ID': 'id',
+                            'Customer Name': 'customer_name',
+                            'Product Name': 'product_name',
+                            'Amount': 'amount',
+                            'Status': 'status',
+                            'Order Date': 'order_date'
+                        }
+                        
+                        field_name = field_map.get(header, header.lower().replace(' ', '_'))
+                        
+                        if field_name == 'amount' and value:
+                            try:
+                                order_dict[field_name] = float(value.replace('$', '').replace(',', ''))
+                            except:
+                                order_dict[field_name] = 0.0
+                        else:
+                            order_dict[field_name] = value
+                
+                if 'id' not in order_dict:
+                    order_dict['id'] = f"order_{row_index}"
+                    
+                orders.append(order_dict)
+            
+            return orders
+            
+        except HttpError as error:
+            print(f"An error occurred fetching orders: {error}")
+            return []
+    
+    def get_all_sources(self, sheet_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch all sources from Google Sheets"""
+        target_sheet = sheet_name or getattr(settings, 'SOURCES_SHEET_NAME', 'Sources')
+        
+        if self.use_fallback:
+            # Return mock sources data
+            return [
+                {
+                    "id": "source_001",
+                    "name": "Amazon US",
+                    "url": "https://amazon.com",
+                    "status": "active",
+                    "products_count": 150,
+                    "last_sync": datetime.now().isoformat(),
+                    "sheet_row": 2
+                }
+            ]
+            
+        if not self.service or not self.spreadsheet_id:
+            return []
+        
+        try:
+            range_name = f"{target_sheet}!A:H"  # Sources have different column structure
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+            
+            values = result.get('values', [])
+            if not values:
+                return []
+            
+            # Parse sources data
+            headers = values[0]
+            sources = []
+            
+            for row_index, row in enumerate(values[1:], start=2):
+                source_dict = {'sheet_row': row_index}
+                
+                for i, header in enumerate(headers):
+                    if i < len(row):
+                        value = row[i]
+                        field_map = {
+                            'Source ID': 'id',
+                            'Name': 'name',
+                            'URL': 'website_url',
+                            'Status': 'status',
+                            'Products Count': 'total_products',
+                            'Last Sync': 'last_sync'
+                        }
+                        
+                        field_name = field_map.get(header, header.lower().replace(' ', '_'))
+                        
+                        if field_name == 'total_products' and value:
+                            try:
+                                source_dict[field_name] = int(value)
+                            except:
+                                source_dict[field_name] = 0
+                        else:
+                            source_dict[field_name] = value
+                
+                if 'id' not in source_dict:
+                    source_dict['id'] = f"source_{row_index}"
+                    
+                sources.append(source_dict)
+            
+            return sources
+            
+        except HttpError as error:
+            print(f"An error occurred fetching sources: {error}")
+            return []

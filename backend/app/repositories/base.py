@@ -349,3 +349,39 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         except SQLAlchemyError as e:
             db.rollback()
             raise e
+
+
+class BaseRepository(Generic[ModelType]):
+    """Simplified base repository for direct model operations"""
+    
+    def __init__(self, model: Type[ModelType], db: Session):
+        self.model = model
+        self.db = db
+    
+    def get(self, id: Any) -> Optional[ModelType]:
+        """Get single record by ID"""
+        return self.db.query(self.model).filter(self.model.id == id).first()
+    
+    def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
+        """Get all records with pagination"""
+        return self.db.query(self.model).offset(skip).limit(limit).all()
+    
+    def create(self, obj: ModelType) -> ModelType:
+        """Create new record"""
+        self.db.add(obj)
+        self.db.commit()
+        self.db.refresh(obj)
+        return obj
+    
+    def update(self, obj: ModelType) -> ModelType:
+        """Update existing record"""
+        self.db.commit()
+        self.db.refresh(obj)
+        return obj
+    
+    def delete(self, id: Any) -> None:
+        """Delete record by ID"""
+        obj = self.db.query(self.model).filter(self.model.id == id).first()
+        if obj:
+            self.db.delete(obj)
+            self.db.commit()
