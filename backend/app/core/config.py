@@ -1,0 +1,43 @@
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "eBay Listing Optimizer"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:3001"]
+    
+    # Google Sheets
+    GOOGLE_SHEETS_CREDENTIALS_PATH: str = "credentials/google-service-account.json"
+    SPREADSHEET_ID: Optional[str] = None
+    SHEET_NAME: str = "Listings"
+    
+    # Optimization settings
+    MAX_TITLE_LENGTH: int = 80
+    MAX_DESCRIPTION_LENGTH: int = 4000
+    
+    # Fallback mode settings
+    USE_FALLBACK_DATA: bool = False
+    FALLBACK_DATA_PATH: str = "data/sample_listings.json"
+    
+    # eBay Categories (can be extended)
+    EBAY_CATEGORIES: dict = {
+        "electronics": ["brand", "model", "condition", "capacity", "color"],
+        "clothing": ["brand", "size", "color", "material", "condition"],
+        "collectibles": ["year", "edition", "condition", "authenticity", "rarity"],
+        "home": ["brand", "dimensions", "material", "color", "condition"]
+    }
+    
+    # Keywords priority
+    HIGH_PRIORITY_KEYWORDS: list = ["new", "sealed", "authentic", "original", "genuine", "oem"]
+    MEDIUM_PRIORITY_KEYWORDS: list = ["fast shipping", "free shipping", "warranty", "guaranteed"]
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+settings = Settings()
