@@ -132,10 +132,10 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Docker
-.dockerignore
-Dockerfile
-docker-compose*.yml
+# Docker (commented out to include Docker files in repo)
+# .dockerignore
+# Dockerfile
+# docker-compose*.yml
 
 # Local development
 .local/
