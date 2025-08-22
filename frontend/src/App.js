@@ -8,14 +8,17 @@ import ebayTheme from './theme/ebayTheme';
 
 // Pages
 import EbayDashboard from './pages/EbayDashboard';
+import EmployeeWorkspace from './pages/EmployeeWorkspace';
+import QuickListing from './pages/QuickListing';
 import ListingsPage from './pages/ListingsPage';
-import OrdersPage from './pages/OrdersPage';
+import OrdersPageOptimized from './pages/OrdersPageOptimized';
 import CreateListingPage from './pages/CreateListingPage';
 import OptimizePage from './pages/OptimizePage';
 import SourcesPage from './pages/SourcesPage';
-import SuppliersPage from './pages/SuppliersPage';
+import ProductsPage from './pages/ProductsPage';
 import AccountsPage from './pages/AccountsPage';
 import SettingsPage from './pages/SettingsPage';
+import DraftsPage from './pages/DraftsPage';
 
 // Auth Components
 import Login from './components/Login/Login';
@@ -58,8 +61,8 @@ const LoginPage = () => {
 
   // Only redirect after loading is complete and user is authenticated
   if (!loading && isAuthenticated) {
-    console.log('LoginPage: Redirecting to dashboard, user authenticated');
-    return <Navigate to="/dashboard" replace />;
+    console.log('LoginPage: Redirecting to workspace, user authenticated');
+    return <Navigate to="/workspace" replace />;
   }
 
   const handleLogin = async (credentials) => {
@@ -98,14 +101,17 @@ function App() {
               <Route path="*" element={
                 <ProtectedRoute>
                   <Routes>
-                    <Route path="/" element={<EbayDashboard />} />
+                    <Route path="/" element={<EmployeeWorkspace />} />
+                    <Route path="/workspace" element={<EmployeeWorkspace />} />
+                    <Route path="/quick-listing" element={<QuickListing />} />
                     <Route path="/dashboard" element={<EbayDashboard />} />
                     <Route path="/listings" element={<ListingsPage />} />
                     <Route path="/listings/create" element={<CreateListingPage />} />
                     <Route path="/listings/optimize" element={<OptimizePage />} />
-                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route path="/drafts" element={<DraftsPage />} />
+                    <Route path="/orders" element={<OrdersPageOptimized />} />
                     <Route path="/sources" element={<SourcesPage />} />
-                    <Route path="/suppliers" element={<SuppliersPage />} />
+                    <Route path="/products" element={<ProductsPage />} />
                     <Route path="/accounts" element={<AccountsPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>

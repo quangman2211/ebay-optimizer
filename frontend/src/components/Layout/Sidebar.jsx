@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Drawer,
@@ -25,20 +25,111 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { ordersAPI, listingsAPI, sourcesAPI, draftsAPI } from '../../services/api';
 
 const Sidebar = ({ open, onClose, onToggle }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const { user, logout } = useAuth();
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  const [badges, setBadges] = useState({
+    orders: 0,
+    listings: 0,
+    sources: 0,
+    drafts: 0
+  });
 
   const location = useLocation();
   
+  // Fetch badge counts from API
+  useEffect(() => {
+    const fetchBadgeCounts = async () => {
+      try {
+        // Fetch pending orders count
+        const ordersResponse = await ordersAPI.getAll({
+          status: 'pending',
+          page: 1,
+          size: 1
+        });
+        
+        // Fetch draft listings count
+        const listingsResponse = await listingsAPI.getAll({
+          status: 'draft', 
+          page: 1,
+          size: 1
+        });
+        
+        // Fetch disconnected sources count
+        const sourcesResponse = await sourcesAPI.getAll({
+          status: 'disconnected',
+          page: 1,
+          size: 1
+        });
+        
+        // Fetch draft listings count
+        const draftsResponse = await draftsAPI.getAll({
+          status: 'pending',
+          page: 1,
+          size: 1
+        });
+        
+        setBadges({
+          orders: ordersResponse.data?.total || 0,
+          listings: listingsResponse.data?.total || 0,
+          sources: sourcesResponse.data?.total || 0,
+          drafts: draftsResponse.data?.total || 0
+        });
+        
+      } catch (error) {
+        console.warn('Sidebar: Error fetching badge counts:', error);
+        // Keep badges at 0 on error
+      }
+    };
+    
+    fetchBadgeCounts();
+    
+    // Refresh badges every 30 seconds
+    const interval = setInterval(fetchBadgeCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
   const menuItems = [
-    { text: 'Dashboard', icon: 'bi-speedometer2', path: '/dashboard' },
-    { text: 'Quản lý Listings', icon: 'bi-list-ul', path: '/listings' },
-    { text: 'Quản lý Đơn hàng', icon: 'bi-cart-check', path: '/orders', badge: 5, badgeColor: 'error' },
-    { text: 'Nguồn hàng', icon: 'bi-cart3', path: '/sources' },
+    { text: 'Workspace', icon: 'bi-lightning', path: '/workspace' },
+    { text: 'Quick Listing', icon: 'bi-plus-circle', path: '/quick-listing' },
+    { text: 'Analytics', icon: 'bi-speedometer2', path: '/dashboard' },
+    { 
+      text: 'Draft Listings', 
+      icon: 'bi-file-earmark-text', 
+      path: '/drafts',
+      badge: badges.drafts > 0 ? badges.drafts : null,
+      badgeColor: 'warning'
+    },
+    { 
+      text: 'Quản lý Listings', 
+      icon: 'bi-list-ul', 
+      path: '/listings',
+      badge: badges.listings > 0 ? badges.listings : null,
+      badgeColor: 'info'
+    },
+    { 
+      text: 'Quản lý Đơn hàng', 
+      icon: 'bi-cart-check', 
+      path: '/orders', 
+      badge: badges.orders > 0 ? badges.orders : null, 
+      badgeColor: 'error' 
+    },
+    { 
+      text: 'Nguồn hàng', 
+      icon: 'bi-cart3', 
+      path: '/sources',
+      badge: badges.sources > 0 ? badges.sources : null,
+      badgeColor: 'warning'
+    },
+    { 
+      text: 'Quản lý Sản phẩm', 
+      icon: 'bi-box-seam', 
+      path: '/products'
+    },
     { text: 'Tài khoản eBay', icon: 'bi-person-badge', path: '/accounts' },
     { text: 'Cài đặt', icon: 'bi-gear', path: '/settings' },
   ];

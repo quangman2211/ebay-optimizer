@@ -19,6 +19,7 @@ import {
   CircularProgress,
   LinearProgress,
   Menu,
+  Alert,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -33,6 +34,7 @@ import {
   AccountBox as AccountIcon,
 } from '@mui/icons-material';
 import MainLayout from '../components/Layout/MainLayout';
+import { accountsAPI } from '../services/api';
 
 const AccountsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -42,102 +44,146 @@ const AccountsPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [actionMenu, setActionMenu] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Mock data based on Ebay-UI-New structure - cards design
-  const mockAccounts = [
-    {
-      id: 1,
-      username: 'seller_pro_2025',
-      email: 'seller.pro@email.com',
-      country: 'US',
-      flag: '🇺🇸',
-      status: 'active',
-      healthScore: 92,
-      totalListings: 147,
-      activeListings: 132,
-      totalSales: 1247,
-      monthlyRevenue: 15420.50,
-      feedbackScore: 99.2,
-      feedbackCount: 2847,
-      joinDate: '2018-03-15',
-      lastActivity: '2025-08-20 14:30',
-      limits: {
-        monthlyListing: 500,
-        monthlyRevenue: 25000,
-        usedListing: 132,
-        usedRevenue: 15420.50
+  // Fetch accounts from API
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('AccountsPage: Fetching accounts from API...');
+        const response = await accountsAPI.getAll({
+          page: 1,
+          size: 100,
+          sort_by: 'last_activity',
+          sort_order: 'desc'
+        });
+        
+        if (response.data && response.data.items) {
+          const apiAccounts = response.data.items || [];
+          console.log(`AccountsPage: Fetched ${apiAccounts.length} accounts`);
+          
+          // Transform API data to component format
+          const transformedAccounts = apiAccounts.map(account => ({
+            id: account.id,
+            username: account.username || `account_${account.id}`,
+            email: account.email || 'N/A',
+            country: account.country || 'Unknown',
+            flag: getFlagFromCountry(account.country),
+            status: account.status || 'active',
+            healthScore: calculateHealthScore(account),
+            totalListings: account.total_listings || 0,
+            activeListings: account.active_listings || 0,
+            totalSales: account.total_sales || 0,
+            monthlyRevenue: parseFloat(account.monthly_revenue || 0),
+            feedbackScore: parseFloat(account.feedback_score || 95.0),
+            feedbackCount: account.feedback_count || 0,
+            joinDate: account.created_at ? new Date(account.created_at).toISOString().split('T')[0] : '2020-01-01',
+            lastActivity: account.last_activity ? new Date(account.last_activity).toLocaleString('vi-VN') : 'Không có hoạt động',
+            limits: {
+              monthlyListing: account.monthly_listing_limit || 500,
+              monthlyRevenue: account.monthly_revenue_limit || 25000,
+              usedListing: account.active_listings || 0,
+              usedRevenue: parseFloat(account.monthly_revenue || 0)
+            }
+          }));
+          
+          setAccounts(transformedAccounts);
+          setFilteredAccounts(transformedAccounts);
+        } else {
+          console.warn('AccountsPage: No accounts data in response');
+          // Set fallback mock data if API returns empty
+          const fallbackAccounts = [
+            {
+              id: 1,
+              username: 'demo_seller',
+              email: 'demo@ebay.com',
+              country: 'US',
+              flag: '🇺🇸',
+              status: 'active',
+              healthScore: 85,
+              totalListings: 50,
+              activeListings: 45,
+              totalSales: 250,
+              monthlyRevenue: 5000,
+              feedbackScore: 98.5,
+              feedbackCount: 500,
+              joinDate: '2020-01-01',
+              lastActivity: new Date().toLocaleString('vi-VN'),
+              limits: {
+                monthlyListing: 500,
+                monthlyRevenue: 10000,
+                usedListing: 45,
+                usedRevenue: 5000
+              }
+            }
+          ];
+          setAccounts(fallbackAccounts);
+          setFilteredAccounts(fallbackAccounts);
+        }
+        
+      } catch (err) {
+        console.error('AccountsPage: Error fetching accounts:', err);
+        setError('Không thể tải danh sách tài khoản. Vui lòng thử lại.');
+        
+        // Set fallback data on error
+        const fallbackAccounts = [
+          {
+            id: 1,
+            username: 'demo_seller',
+            email: 'demo@ebay.com',
+            country: 'US',
+            flag: '🇺🇸',
+            status: 'active',
+            healthScore: 85,
+            totalListings: 50,
+            activeListings: 45,
+            totalSales: 250,
+            monthlyRevenue: 5000,
+            feedbackScore: 98.5,
+            feedbackCount: 500,
+            joinDate: '2020-01-01',
+            lastActivity: new Date().toLocaleString('vi-VN'),
+            limits: {
+              monthlyListing: 500,
+              monthlyRevenue: 10000,
+              usedListing: 45,
+              usedRevenue: 5000
+            }
+          }
+        ];
+        setAccounts(fallbackAccounts);
+        setFilteredAccounts(fallbackAccounts);
+      } finally {
+        setLoading(false);
       }
-    },
-    {
-      id: 2,
-      username: 'global_trader_vn',
-      email: 'trader.vn@email.com',
-      country: 'VN',
-      flag: '🇻🇳',
-      status: 'active',
-      healthScore: 85,
-      totalListings: 89,
-      activeListings: 76,
-      totalSales: 892,
-      monthlyRevenue: 8750.25,
-      feedbackScore: 98.7,
-      feedbackCount: 1523,
-      joinDate: '2019-07-22',
-      lastActivity: '2025-08-20 13:15',
-      limits: {
-        monthlyListing: 250,
-        monthlyRevenue: 15000,
-        usedListing: 76,
-        usedRevenue: 8750.25
-      }
-    },
-    {
-      id: 3,
-      username: 'tech_seller_uk',
-      email: 'tech.uk@email.com',
-      country: 'UK',
-      flag: '🇬🇧',
-      status: 'restricted',
-      healthScore: 68,
-      totalListings: 45,
-      activeListings: 23,
-      totalSales: 234,
-      monthlyRevenue: 3240.80,
-      feedbackScore: 96.5,
-      feedbackCount: 456,
-      joinDate: '2020-11-08',
-      lastActivity: '2025-08-19 16:45',
-      limits: {
-        monthlyListing: 100,
-        monthlyRevenue: 5000,
-        usedListing: 23,
-        usedRevenue: 3240.80
-      }
-    },
-    {
-      id: 4,
-      username: 'fashion_store_ca',
-      email: 'fashion.ca@email.com',
-      country: 'CA',
-      flag: '🇨🇦',
-      status: 'suspended',
-      healthScore: 45,
-      totalListings: 67,
-      activeListings: 0,
-      totalSales: 567,
-      monthlyRevenue: 0,
-      feedbackScore: 94.2,
-      feedbackCount: 789,
-      joinDate: '2019-05-12',
-      lastActivity: '2025-08-15 09:20',
-      limits: {
-        monthlyListing: 200,
-        monthlyRevenue: 10000,
-        usedListing: 0,
-        usedRevenue: 0
-      }
-    },
-  ];
+    };
+
+    fetchAccounts();
+  }, []);
+
+  // Helper functions
+  const getFlagFromCountry = (country) => {
+    const flags = {
+      'US': '🇺🇸',
+      'VN': '🇻🇳', 
+      'UK': '🇬🇧',
+      'CA': '🇨🇦',
+      'AU': '🇦🇺',
+      'DE': '🇩🇪'
+    };
+    return flags[country] || '🌍';
+  };
+  
+  const calculateHealthScore = (account) => {
+    let score = 70; // Base score
+    if (account.status === 'active') score += 20;
+    if ((account.feedback_score || 0) > 95) score += 10;
+    if ((account.monthly_revenue || 0) > 1000) score += 5;
+    return Math.min(score, 100);
+  };
 
   const statusOptions = [
     { value: '', label: 'Tất cả trạng thái' },
@@ -154,15 +200,6 @@ const AccountsPage = () => {
     { value: 'UK', label: 'United Kingdom' },
     { value: 'CA', label: 'Canada' },
   ];
-
-  useEffect(() => {
-    // Simulate data loading
-    setTimeout(() => {
-      setAccounts(mockAccounts);
-      setFilteredAccounts(mockAccounts);
-      setLoading(false);
-    }, 1000);
-  }, []);
 
   useEffect(() => {
     applyFilters();
@@ -189,46 +226,46 @@ const AccountsPage = () => {
     setFilteredAccounts(filtered);
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'restricted': return 'warning';
+      case 'suspended': return 'error';
+      case 'under_review': return 'info';
+      default: return 'default';
+    }
+  };
+
+  const getStatusLabel = (status) => {
     const statusMap = {
-      active: { color: 'success', label: 'Hoạt động' },
-      restricted: { color: 'warning', label: 'Bị hạn chế' },
-      suspended: { color: 'error', label: 'Bị đình chỉ' },
-      under_review: { color: 'info', label: 'Đang xem xét' },
+      'active': 'Hoạt động',
+      'restricted': 'Bị hạn chế',
+      'suspended': 'Bị đình chỉ',
+      'under_review': 'Đang xem xét'
     };
-    return statusMap[status] || { color: 'default', label: status };
+    return statusMap[status] || status;
   };
 
   const getHealthScoreColor = (score) => {
-    if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
-    return 'error';
+    if (score >= 90) return '#4caf50';
+    if (score >= 70) return '#ff9800';
+    return '#f44336';
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const handleActionClick = (event, account) => {
+    setActionMenu({ anchorEl: event.currentTarget, account });
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
-  };
-
-  const formatDateTime = (dateTimeString) => {
-    return new Date(dateTimeString).toLocaleString('vi-VN');
-  };
-
-  const handleSyncAccount = (accountId) => {
-    alert(`Đang đồng bộ tài khoản ${accountId}...`);
+  const handleActionClose = () => {
+    setActionMenu(null);
   };
 
   if (loading) {
     return (
       <MainLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
-          <CircularProgress />
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ ml: 2 }}>Đang tải tài khoản eBay...</Typography>
         </Box>
       </MainLayout>
     );
@@ -236,348 +273,241 @@ const AccountsPage = () => {
 
   return (
     <MainLayout>
+      {error && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          {error}
+          <Button 
+            variant="outlined" 
+            size="small" 
+            sx={{ ml: 2 }}
+            onClick={() => window.location.reload()}
+          >
+            Thử lại
+          </Button>
+        </Alert>
+      )}
+
       {/* Page Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h3" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
-            Tài khoản eBay
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Quản lý và theo dõi các tài khoản eBay
-          </Typography>
+        <Typography variant="h4" fontWeight="bold">
+          🏪 Quản lý Tài khoản eBay
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" startIcon={<SyncIcon />}>
+            Đồng bộ
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />}>
+            Thêm tài khoản
+          </Button>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-            },
-          }}
-        >
-          Thêm Tài Khoản
-        </Button>
       </Box>
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
-                {accounts.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Tổng tài khoản
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main', mb: 1 }}>
-                {accounts.filter(a => a.status === 'active').length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Đang hoạt động
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main', mb: 1 }}>
-                {accounts.reduce((sum, a) => sum + a.totalListings, 0)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Tổng listings
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.main', mb: 1 }}>
-                {Math.round(accounts.reduce((sum, a) => sum + a.healthScore, 0) / accounts.length)}%
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Health Score TB
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Controls */}
+      {/* Search and Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm tài khoản..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ minWidth: 250 }}
-            />
-
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Trạng thái</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                label="Trạng thái"
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                placeholder="Tìm kiếm tài khoản..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Trạng thái</InputLabel>
+                <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  {statusOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Quốc gia</InputLabel>
+                <Select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+                  {countryOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<ExportIcon />}
               >
-                {statusOptions.map(option => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Quốc gia</InputLabel>
-              <Select
-                value={countryFilter}
-                onChange={(e) => setCountryFilter(e.target.value)}
-                label="Quốc gia"
-              >
-                {countryOptions.map(option => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-              <Button variant="outlined" startIcon={<SyncIcon />} size="small">
-                Đồng bộ tất cả
+                Export
               </Button>
-              <Button variant="outlined" startIcon={<ExportIcon />} size="small">
-                Xuất Excel
-              </Button>
-            </Box>
-          </Box>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
-      {/* Account Cards Grid */}
+      {/* Accounts Grid */}
       <Grid container spacing={3}>
-        {filteredAccounts.map((account) => {
-          const statusInfo = getStatusBadge(account.status);
-          const healthColor = getHealthScoreColor(account.healthScore);
-          const listingProgress = (account.limits.usedListing / account.limits.monthlyListing) * 100;
-          const revenueProgress = (account.limits.usedRevenue / account.limits.monthlyRevenue) * 100;
-
-          return (
-            <Grid item xs={12} md={6} lg={4} key={account.id}>
-              <Card 
-                sx={{ 
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative',
-                  '&:hover': {
-                    boxShadow: 3,
-                  }
-                }}
-              >
-                {/* Card Header */}
-                <CardHeader
-                  avatar={
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                      <AccountIcon />
-                    </Avatar>
-                  }
-                  action={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6" sx={{ mr: 1 }}>
-                        {account.flag}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => setActionMenu(e.currentTarget)}
-                      >
-                        <MoreIcon />
-                      </IconButton>
-                    </Box>
-                  }
-                  title={
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+        {filteredAccounts.map((account) => (
+          <Grid item xs={12} md={6} lg={4} key={account.id}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                border: `2px solid ${account.status === 'active' ? '#4caf50' : account.status === 'restricted' ? '#ff9800' : '#f44336'}`,
+                '&:hover': { boxShadow: 3 }
+              }}
+            >
+              <CardHeader
+                avatar={
+                  <Avatar sx={{ bgcolor: getHealthScoreColor(account.healthScore) }}>
+                    {account.flag}
+                  </Avatar>
+                }
+                title={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6" fontWeight="bold">
                       {account.username}
                     </Typography>
-                  }
-                  subheader={
-                    <Typography variant="body2" color="text.secondary">
-                      {account.email}
-                    </Typography>
-                  }
-                />
-
-                <CardContent sx={{ flexGrow: 1, pt: 0 }}>
-                  {/* Status and Health Score */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Chip
-                      label={statusInfo.label}
-                      color={statusInfo.color}
+                    <Chip 
+                      label={getStatusLabel(account.status)}
+                      color={getStatusColor(account.status)}
                       size="small"
                     />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        Health Score:
-                      </Typography>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 'bold',
-                          color: healthColor === 'success' ? 'success.main' : 
-                                 healthColor === 'warning' ? 'warning.main' : 'error.main'
-                        }}
-                      >
-                        {account.healthScore}%
-                      </Typography>
-                    </Box>
                   </Box>
-
-                  {/* Performance Metrics */}
-                  <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total Listings
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        {account.totalListings}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Active Listings
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                        {account.activeListings}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total Sales
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        {account.totalSales}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Monthly Revenue
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                        {formatCurrency(account.monthlyRevenue)}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-
-                  {/* Feedback Score */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Feedback:</strong> {account.feedbackScore}% ({account.feedbackCount} reviews)
+                }
+                subheader={account.email}
+                action={
+                  <IconButton onClick={(e) => handleActionClick(e, account)}>
+                    <MoreIcon />
+                  </IconButton>
+                }
+              />
+              
+              <CardContent>
+                {/* Health Score */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="textSecondary">
+                      Health Score
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold" color={getHealthScoreColor(account.healthScore)}>
+                      {account.healthScore}/100
                     </Typography>
                   </Box>
-
-                  {/* Usage Limits */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                      Listing Limit
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={listingProgress}
-                      color={listingProgress > 80 ? 'error' : listingProgress > 60 ? 'warning' : 'success'}
-                      sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {account.limits.usedListing} / {account.limits.monthlyListing} listings
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                      Revenue Limit
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={revenueProgress}
-                      color={revenueProgress > 80 ? 'error' : revenueProgress > 60 ? 'warning' : 'success'}
-                      sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {formatCurrency(account.limits.usedRevenue)} / {formatCurrency(account.limits.monthlyRevenue)}
-                    </Typography>
-                  </Box>
-
-                  {/* Account Info */}
-                  <Box sx={{ borderTop: '1px solid #e0e0e0', pt: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      <strong>Joined:</strong> {formatDate(account.joinDate)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      <strong>Last Activity:</strong> {formatDateTime(account.lastActivity)}
-                    </Typography>
-                  </Box>
-                </CardContent>
-
-                {/* Card Actions */}
-                <Box sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<SyncIcon />}
-                    onClick={() => handleSyncAccount(account.id)}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Đồng bộ tài khoản
-                  </Button>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={account.healthScore} 
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: '#f0f0f0',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: getHealthScoreColor(account.healthScore),
+                        borderRadius: 4
+                      }
+                    }}
+                  />
                 </Box>
-              </Card>
-            </Grid>
-          );
-        })}
+
+                {/* Statistics */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary">Listings</Typography>
+                    <Typography variant="h6" fontWeight="bold">
+                      {account.activeListings}/{account.totalListings}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary">Total Sales</Typography>
+                    <Typography variant="h6" fontWeight="bold">
+                      {account.totalSales}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary">Monthly Revenue</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="primary.main">
+                      ${account.monthlyRevenue.toLocaleString()}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="textSecondary">Feedback</Typography>
+                    <Typography variant="h6" fontWeight="bold">
+                      {account.feedbackScore}% ({account.feedbackCount})
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                {/* Usage Limits */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Listing Limit: {account.limits.usedListing}/{account.limits.monthlyListing}
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={(account.limits.usedListing / account.limits.monthlyListing) * 100} 
+                    sx={{ height: 4, borderRadius: 2, mb: 1 }}
+                  />
+                  <Typography variant="body2" color="textSecondary">
+                    Revenue Limit: ${account.limits.usedRevenue.toLocaleString()}/${account.limits.monthlyRevenue.toLocaleString()}
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={(account.limits.usedRevenue / account.limits.monthlyRevenue) * 100} 
+                    sx={{ height: 4, borderRadius: 2 }}
+                  />
+                </Box>
+
+                {/* Last Activity */}
+                <Typography variant="caption" color="textSecondary">
+                  Last Activity: {account.lastActivity}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
+
+      {filteredAccounts.length === 0 && !loading && (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <AccountIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h5" color="textSecondary" gutterBottom>
+            Không tìm thấy tài khoản
+          </Typography>
+          <Typography variant="body1" color="textSecondary">
+            Thử thay đổi bộ lọc hoặc thêm tài khoản mới
+          </Typography>
+        </Box>
+      )}
 
       {/* Action Menu */}
       <Menu
-        anchorEl={actionMenu}
+        anchorEl={actionMenu?.anchorEl}
         open={Boolean(actionMenu)}
-        onClose={() => setActionMenu(null)}
+        onClose={handleActionClose}
       >
-        <MenuItem onClick={() => setActionMenu(null)}>
-          <ViewIcon sx={{ mr: 1 }} />
-          Xem chi tiết
+        <MenuItem onClick={handleActionClose}>
+          <ViewIcon sx={{ mr: 1 }} /> Xem chi tiết
         </MenuItem>
-        <MenuItem onClick={() => setActionMenu(null)}>
-          <EditIcon sx={{ mr: 1 }} />
-          Chỉnh sửa
+        <MenuItem onClick={handleActionClose}>
+          <EditIcon sx={{ mr: 1 }} /> Chỉnh sửa
         </MenuItem>
-        <MenuItem onClick={() => setActionMenu(null)}>
-          <SyncIcon sx={{ mr: 1 }} />
-          Đồng bộ ngay
+        <MenuItem onClick={handleActionClose}>
+          <SyncIcon sx={{ mr: 1 }} /> Đồng bộ
         </MenuItem>
-        <MenuItem onClick={() => setActionMenu(null)}>
-          Kiểm tra health
-        </MenuItem>
-        <MenuItem onClick={() => setActionMenu(null)} sx={{ color: 'error.main' }}>
-          <DeleteIcon sx={{ mr: 1 }} />
-          Xóa tài khoản
+        <MenuItem onClick={handleActionClose} sx={{ color: 'error.main' }}>
+          <DeleteIcon sx={{ mr: 1 }} /> Xóa
         </MenuItem>
       </Menu>
     </MainLayout>

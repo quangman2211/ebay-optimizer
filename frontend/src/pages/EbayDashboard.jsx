@@ -48,6 +48,21 @@ const EbayDashboard = () => {
   const [trackingBulkOpen, setTrackingBulkOpen] = useState(false);
   const [exportOrdersOpen, setExportOrdersOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  
+  // Employee productivity states
+  const [selectedAccount, setSelectedAccount] = useState('seller123@email.com');
+  const [todayStats, setTodayStats] = useState({
+    listingsToday: 47,
+    targetListings: 50,
+    avgTimePerListing: 3.2,
+    successRate: 94
+  });
+  const [workQueue, setWorkQueue] = useState({
+    drafts: 12,
+    pendingOptimization: 8,
+    failedSyncs: 3,
+    missingImages: 5
+  });
   const [syncModalOpen, setSyncModalOpen] = useState(false);
 
   // Data states

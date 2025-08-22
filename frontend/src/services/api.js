@@ -196,6 +196,197 @@ export const syncAPI = {
   getHistory: (limit = 20) => api.get(`/sync/history?limit=${limit}`),
 };
 
+// Multi-Account APIs for Employee Productivity
+
+// Draft Listings APIs - Employee workflow focused
+export const draftsAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    return api.get(`/drafts?${queryParams.toString()}`);
+  },
+  getById: (id) => api.get(`/drafts/${id}`),
+  create: (data) => api.post('/drafts', data),
+  update: (id, data) => api.put(`/drafts/${id}`, data),
+  delete: (id) => api.delete(`/drafts/${id}`),
+  
+  // Employee workflow APIs
+  updateImageStatus: (id, data) => api.patch(`/drafts/${id}/image-status`, data),
+  bulkUpdateStatus: (data) => api.patch('/drafts/bulk-status', data),
+  getReadyToList: (accountId) => api.get(`/drafts/ready/to-list?account_id=${accountId || ''}`),
+  getAnalytics: (accountId) => api.get(`/drafts/analytics?account_id=${accountId || ''}`),
+  getByEmployee: (employeeName) => api.get(`/drafts/by-employee/${employeeName}`),
+  
+  // Productivity features
+  getBatchCreateOptions: (sourceProductId) => api.get(`/drafts/batch-create-options/${sourceProductId}`),
+  batchCreate: (sourceProductId, accounts, customizations) => 
+    api.post('/drafts/batch-create', { source_product_id: sourceProductId, accounts, customizations }),
+  getTaskQueue: (employeeName) => api.get(`/drafts/task-queue?employee=${employeeName}`),
+  updateTaskStatus: (taskId, status) => api.patch(`/drafts/tasks/${taskId}`, { status }),
+};
+
+// Messages APIs - Customer service focused
+export const messagesAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    return api.get(`/messages?${queryParams.toString()}`);
+  },
+  getById: (id) => api.get(`/messages/${id}`),
+  create: (data) => api.post('/messages', data),
+  update: (id, data) => api.put(`/messages/${id}`, data),
+  delete: (id) => api.delete(`/messages/${id}`),
+  
+  // Customer service workflow
+  markRead: (id) => api.patch(`/messages/${id}/read`),
+  markReplied: (id) => api.patch(`/messages/${id}/replied`),
+  bulkMarkRead: (messageIds) => api.patch('/messages/bulk-read', { message_ids: messageIds }),
+  bulkUpdatePriority: (messageIds, priority) => 
+    api.patch('/messages/bulk-priority', { message_ids: messageIds, priority }),
+  
+  // Employee productivity features
+  getUnreadCount: (accountId) => api.get(`/messages/unread/count?account_id=${accountId || ''}`),
+  getUnreplied: (accountId) => api.get(`/messages/unreplied/list?account_id=${accountId || ''}`),
+  getOverdue: (accountId) => api.get(`/messages/overdue/list?account_id=${accountId || ''}`),
+  getAnalytics: (accountId) => api.get(`/messages/analytics?account_id=${accountId || ''}`),
+  
+  // Quick reply features
+  getTemplates: () => api.get('/messages/templates'),
+  createTemplate: (template) => api.post('/messages/templates', template),
+  replyWithTemplate: (messageId, templateId, customText) => 
+    api.post(`/messages/${messageId}/reply-template`, { template_id: templateId, custom_text: customText }),
+};
+
+// Account Sheets APIs - Google Sheets sync focused
+export const accountSheetsAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    return api.get(`/account-sheets?${queryParams.toString()}`);
+  },
+  getById: (id) => api.get(`/account-sheets/${id}`),
+  create: (data) => api.post('/account-sheets', data),
+  update: (id, data) => api.put(`/account-sheets/${id}`, data),
+  delete: (id) => api.delete(`/account-sheets/${id}`),
+  
+  // Sheet management
+  createDefaults: (accountId) => api.post(`/account-sheets/account/${accountId}/create-defaults`),
+  getSheetsNeedingSync: () => api.get('/account-sheets/sync/needed'),
+  triggerSync: (sheetId) => api.post('/account-sheets/sync/trigger', { sheet_id: sheetId }),
+  bulkUpdateSync: (sheetIds, autoSync) => 
+    api.patch('/account-sheets/bulk-sync', { sheet_ids: sheetIds, auto_sync: autoSync }),
+  bulkUpdateFrequency: (sheetIds, frequency) => 
+    api.patch('/account-sheets/bulk-frequency', { sheet_ids: sheetIds, frequency_minutes: frequency }),
+  
+  // Monitoring and analytics
+  getAnalytics: (accountId) => api.get(`/account-sheets/analytics?account_id=${accountId || ''}`),
+  getSheetsWithErrors: () => api.get('/account-sheets/errors/list'),
+  getSyncHistory: (sheetId) => api.get(`/account-sheets/${sheetId}/sync-history`),
+  validateData: (sheetId) => api.post(`/account-sheets/${sheetId}/validate`),
+};
+
+// Employee Productivity APIs - New for employee management
+export const productivityAPI = {
+  // Daily stats
+  getDailyStats: (employeeName, date) => 
+    api.get(`/productivity/daily-stats?employee=${employeeName}&date=${date || ''}`),
+  getWeeklyStats: (employeeName) => 
+    api.get(`/productivity/weekly-stats?employee=${employeeName}`),
+  
+  // Task management
+  getTaskQueue: (employeeName) => api.get(`/productivity/tasks?employee=${employeeName}`),
+  updateTask: (taskId, data) => api.put(`/productivity/tasks/${taskId}`, data),
+  completeTask: (taskId) => api.patch(`/productivity/tasks/${taskId}/complete`),
+  
+  // Performance tracking
+  getPerformanceMetrics: (employeeName, period) => 
+    api.get(`/productivity/performance?employee=${employeeName}&period=${period}`),
+  getLeaderboard: (period) => api.get(`/productivity/leaderboard?period=${period}`),
+  
+  // Goal setting
+  getGoals: (employeeName) => api.get(`/productivity/goals?employee=${employeeName}`),
+  setGoal: (employeeName, goalData) => api.post('/productivity/goals', { employee: employeeName, ...goalData }),
+  updateGoalProgress: (goalId, progress) => api.patch(`/productivity/goals/${goalId}`, { progress }),
+};
+
+// Workflow APIs - Process automation
+export const workflowAPI = {
+  // Batch operations
+  batchCreateDrafts: (sourceProductId, targetAccounts, customizations) =>
+    api.post('/workflow/batch-create-drafts', { 
+      source_product_id: sourceProductId, 
+      target_accounts: targetAccounts,
+      customizations 
+    }),
+  
+  batchApproveImages: (draftIds, employeeName) =>
+    api.post('/workflow/batch-approve-images', { draft_ids: draftIds, employee: employeeName }),
+  
+  batchPublishToEbay: (draftIds) =>
+    api.post('/workflow/batch-publish', { draft_ids: draftIds }),
+  
+  // Process templates
+  getWorkflowTemplates: () => api.get('/workflow/templates'),
+  createWorkflowTemplate: (template) => api.post('/workflow/templates', template),
+  executeWorkflow: (templateId, parameters) => 
+    api.post(`/workflow/templates/${templateId}/execute`, parameters),
+  
+  // Automation rules
+  getAutomationRules: () => api.get('/workflow/automation-rules'),
+  createAutomationRule: (rule) => api.post('/workflow/automation-rules', rule),
+  updateAutomationRule: (ruleId, updates) => api.put(`/workflow/automation-rules/${ruleId}`, updates),
+};
+
+// Products API Service
+export const productsAPI = {
+  // Get all products with filtering
+  getAll: (params = {}) => api.get('/products', { params }),
+  
+  // Get single product
+  getById: (id) => api.get(`/products/${id}`),
+  
+  // Create new product
+  create: (productData) => api.post('/products', productData),
+  
+  // Update product
+  update: (id, productData) => api.put(`/products/${id}`, productData),
+  
+  // Delete product
+  delete: (id) => api.delete(`/products/${id}`),
+  
+  // Get product categories
+  getCategories: () => api.get('/products/categories/list'),
+  
+  // Create draft from product
+  createDraft: (productId, accountId) => 
+    api.post(`/products/${productId}/create-draft?account_id=${accountId}`),
+  
+  // Get product statistics
+  getStatistics: () => api.get('/products/statistics/summary'),
+  
+  // Bulk operations
+  bulkApprove: (productIds) => 
+    api.post('/products/bulk-approve', { product_ids: productIds }),
+    
+  bulkCreateDrafts: (productIds, accountIds) =>
+    api.post('/products/bulk-create-drafts', { 
+      product_ids: productIds, 
+      account_ids: accountIds 
+    }),
+};
+
 // Mock Data Service (temporary fallback)
 export const mockDataService = {
   async getOrders() {
