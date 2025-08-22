@@ -131,7 +131,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def create(self, db: Session, *, obj_in: CreateSchemaType, user_id: Optional[int] = None) -> ModelType:
         """Create new record"""
         try:
-            obj_in_data = obj_in.dict() if hasattr(obj_in, 'dict') else obj_in
+            if hasattr(obj_in, 'model_dump'):
+                obj_in_data = obj_in.model_dump()
+            elif hasattr(obj_in, 'dict'):
+                obj_in_data = obj_in.dict()
+            else:
+                obj_in_data = obj_in
             
             # Add user_id if provided và model có user_id field
             if user_id is not None and hasattr(self.model, 'user_id'):
@@ -161,7 +166,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             if isinstance(obj_in, dict):
                 update_data = obj_in
             else:
-                update_data = obj_in.dict(exclude_unset=True) if hasattr(obj_in, 'dict') else obj_in
+                if hasattr(obj_in, 'model_dump'):
+                    update_data = obj_in.model_dump(exclude_unset=True)
+                elif hasattr(obj_in, 'dict'):
+                    update_data = obj_in.dict(exclude_unset=True)
+                else:
+                    update_data = obj_in
             
             for field in obj_data:
                 if field in update_data:
@@ -195,7 +205,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         try:
             db_objs = []
             for obj_in in objs_in:
-                obj_in_data = obj_in.dict() if hasattr(obj_in, 'dict') else obj_in
+                if hasattr(obj_in, 'model_dump'):
+                    obj_in_data = obj_in.model_dump()
+                elif hasattr(obj_in, 'dict'):
+                    obj_in_data = obj_in.dict()
+                else:
+                    obj_in_data = obj_in
                 
                 if user_id is not None and hasattr(self.model, 'user_id'):
                     obj_in_data['user_id'] = user_id

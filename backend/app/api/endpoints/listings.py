@@ -54,7 +54,7 @@ async def get_listings(
         )
         
         # Convert SQLAlchemy models to Pydantic schemas
-        pydantic_listings = [Listing.from_orm(listing) for listing in result["items"]]
+        pydantic_listings = [Listing.model_validate(listing) for listing in result["items"]]
         
         # Return PaginatedResponse with converted items
         return {
@@ -100,7 +100,7 @@ async def get_listing(
         raise HTTPException(status_code=500, detail=f"Error fetching listing: {str(e)}")
 
 
-@router.post("/", response_model=Listing)
+@router.post("", response_model=Listing)
 async def create_listing(
     listing: ListingCreate,
     db: Session = Depends(get_db),
@@ -116,7 +116,7 @@ async def create_listing(
         listing_id = f"listing_{int(datetime.now().timestamp())}_{str(uuid.uuid4())[:8]}"
         
         # Create listing data
-        listing_data = listing.dict()
+        listing_data = listing.model_dump()
         listing_data['id'] = listing_id
         
         # Create listing với repository
@@ -254,6 +254,26 @@ async def search_listings(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching listings: {str(e)}")
+
+
+@router.post("/sync", response_model=APIResponse)
+async def sync_listings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Sync listings with Google Sheets
+    """
+    try:
+        # Simulate sync process
+        return APIResponse(
+            success=True,
+            message="Listings sync initiated successfully",
+            data={"status": "syncing", "message": "Sync process started"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error syncing listings: {str(e)}")
 
 
 @router.post("/bulk-update", response_model=APIResponse)

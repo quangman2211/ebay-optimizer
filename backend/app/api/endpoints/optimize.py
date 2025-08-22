@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Any
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Dict, Any, Optional
+from enum import Enum
 
 from app.models.listing import (
     OptimizationRequest, OptimizationResponse,
@@ -7,6 +8,8 @@ from app.models.listing import (
     ListingStatus
 )
 from app.core.optimizer import EbayOptimizer
+from app.core.strategies.optimization_strategies import OptimizationType
+from app.core.strategies.export_strategies import ExportFormat
 from app.services.google_sheets import GoogleSheetsService
 
 router = APIRouter()
@@ -14,35 +17,47 @@ optimizer = EbayOptimizer()
 sheets_service = GoogleSheetsService()
 
 
+class StrategyResponse(dict):
+    """Response model for strategy information"""
+    pass
+
+
 @router.post("/title", response_model=OptimizationResponse)
-async def optimize_title(request: OptimizationRequest):
+async def optimize_title(
+    request: OptimizationRequest,
+    strategy_type: Optional[OptimizationType] = Query(OptimizationType.BASIC, description="Optimization strategy to use")
+):
     """
     Optimize a single listing title
     """
     try:
-        # Optimize title
+        # Optimize title using strategy pattern
         optimized_title, title_score = optimizer.optimize_title(
             title=request.title,
             category=request.category,
             keywords=request.keywords,
-            item_specifics=request.item_specifics
+            item_specifics=request.item_specifics,
+            strategy_type=strategy_type
         )
         
-        # Generate keywords
+        # Generate keywords using strategy pattern
         suggested_keywords = optimizer.generate_keywords(
             title=request.title,
             description=request.description or "",
-            category=request.category
+            category=request.category,
+            strategy_type=strategy_type
         )
         
-        # Optimize description if provided
+        # Optimize description if provided using strategy pattern
         optimized_description = None
         if request.description:
             optimized_description = optimizer.optimize_description(
                 title=optimized_title,
                 description=request.description,
                 category=request.category,
-                item_specifics=request.item_specifics
+                item_specifics=request.item_specifics,
+                keywords=suggested_keywords,
+                strategy_type=strategy_type
             )
         
         # Calculate overall SEO score
@@ -79,16 +94,29 @@ async def optimize_title(request: OptimizationRequest):
 
 
 @router.post("/description")
-async def optimize_description(request: OptimizationRequest):
+async def optimize_description(
+    request: OptimizationRequest,
+    strategy_type: Optional[OptimizationType] = Query(OptimizationType.BASIC, description="Optimization strategy to use")
+):
     """
     Generate optimized description for a listing
     """
     try:
+        # Generate keywords first for better description optimization
+        keywords = optimizer.generate_keywords(
+            title=request.title,
+            description=request.description or "",
+            category=request.category,
+            strategy_type=strategy_type
+        )
+        
         optimized_description = optimizer.optimize_description(
             title=request.title,
             description=request.description or "",
             category=request.category,
-            item_specifics=request.item_specifics
+            item_specifics=request.item_specifics,
+            keywords=keywords,
+            strategy_type=strategy_type
         )
         
         return {
@@ -101,7 +129,10 @@ async def optimize_description(request: OptimizationRequest):
 
 
 @router.post("/keywords")
-async def generate_keywords(request: OptimizationRequest):
+async def generate_keywords(
+    request: OptimizationRequest,
+    strategy_type: Optional[OptimizationType] = Query(OptimizationType.BASIC, description="Optimization strategy to use")
+):
     """
     Generate relevant keywords for a listing
     """
@@ -109,7 +140,8 @@ async def generate_keywords(request: OptimizationRequest):
         keywords = optimizer.generate_keywords(
             title=request.title,
             description=request.description or "",
-            category=request.category
+            category=request.category,
+            strategy_type=strategy_type
         )
         
         return {
@@ -121,19 +153,24 @@ async def generate_keywords(request: OptimizationRequest):
 
 
 @router.post("/bulk", response_model=BulkOptimizationResponse)
-async def bulk_optimize(request: BulkOptimizationRequest):
+async def bulk_optimize(request: Dict[str, Any]):
     """
     Optimize multiple listings at once
     """
     try:
-        # Get all listings
-        all_listings = sheets_service.get_all_listings()
-        
-        # Filter listings to optimize
-        listings_to_optimize = [
-            l for l in all_listings 
-            if l.get('id') in request.listing_ids
-        ]
+        # Handle both direct listings array and listing_ids
+        if "listings" in request:
+            # Direct listings provided in request
+            listings_to_optimize = request["listings"]
+        elif "listing_ids" in request:
+            # Get listings from sheets by IDs
+            all_listings = sheets_service.get_all_listings()
+            listings_to_optimize = [
+                l for l in all_listings 
+                if l.get('id') in request["listing_ids"]
+            ]
+        else:
+            raise HTTPException(status_code=422, detail="Request must contain either 'listings' array or 'listing_ids' array")
         
         if not listings_to_optimize:
             raise HTTPException(status_code=404, detail="No listings found with provided IDs")
@@ -141,6 +178,11 @@ async def bulk_optimize(request: BulkOptimizationRequest):
         results = []
         errors = []
         updates_for_sheets = []
+        
+        # Get optimization settings from request
+        optimize_title = request.get("optimize_title", True)
+        optimize_description = request.get("optimize_description", True) 
+        generate_keywords = request.get("generate_keywords", True)
         
         for listing in listings_to_optimize:
             try:
@@ -153,34 +195,38 @@ async def bulk_optimize(request: BulkOptimizationRequest):
                     item_specifics=listing.get('item_specifics', {})
                 )
                 
-                # Optimize title
+                # Optimize title using strategy pattern
                 optimized_title = listing.get('title', '')
                 title_score = 0
-                if request.optimize_title:
+                if optimize_title:
                     optimized_title, title_score = optimizer.optimize_title(
                         title=opt_request.title,
                         category=opt_request.category,
                         keywords=opt_request.keywords,
-                        item_specifics=opt_request.item_specifics
+                        item_specifics=opt_request.item_specifics,
+                        strategy_type=OptimizationType.BASIC  # Default strategy for bulk
                     )
                 
-                # Optimize description
+                # Optimize description using strategy pattern
                 optimized_description = listing.get('description')
-                if request.optimize_description and opt_request.description:
+                if optimize_description and opt_request.description:
                     optimized_description = optimizer.optimize_description(
                         title=optimized_title,
                         description=opt_request.description,
                         category=opt_request.category,
-                        item_specifics=opt_request.item_specifics
+                        item_specifics=opt_request.item_specifics,
+                        keywords=opt_request.keywords,
+                        strategy_type=OptimizationType.BASIC  # Default strategy for bulk
                     )
                 
-                # Generate keywords
+                # Generate keywords using strategy pattern
                 suggested_keywords = listing.get('keywords', [])
-                if request.generate_keywords:
+                if generate_keywords:
                     suggested_keywords = optimizer.generate_keywords(
                         title=optimized_title,
                         description=optimized_description or "",
-                        category=opt_request.category
+                        category=opt_request.category,
+                        strategy_type=OptimizationType.BASIC  # Default strategy for bulk
                     )
                 
                 # Calculate SEO score
@@ -221,8 +267,11 @@ async def bulk_optimize(request: BulkOptimizationRequest):
         if updates_for_sheets:
             sheets_result = sheets_service.batch_update_listings(updates_for_sheets)
         
+        # Calculate total based on input type
+        total_count = len(request.get("listing_ids", [])) if "listing_ids" in request else len(request.get("listings", []))
+        
         return BulkOptimizationResponse(
-            total=len(request.listing_ids),
+            total=total_count,
             successful=len(results),
             failed=len(errors),
             results=results,
@@ -328,3 +377,104 @@ async def analyze_listing(listing_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing listing: {str(e)}")
+
+
+@router.get("/strategies")
+async def get_optimization_strategies():
+    """
+    Get available optimization strategies
+    """
+    try:
+        strategies = optimizer.get_available_optimization_strategies()
+        return {
+            "strategies": strategies,
+            "default": OptimizationType.BASIC.value
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting strategies: {str(e)}")
+
+
+@router.get("/export-formats")
+async def get_export_formats():
+    """
+    Get available export formats
+    """
+    try:
+        formats = optimizer.get_available_export_formats()
+        return {
+            "formats": formats,
+            "default": ExportFormat.CSV.value
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting export formats: {str(e)}")
+
+
+@router.post("/listing/complete")
+async def optimize_complete_listing(
+    request: OptimizationRequest,
+    strategy_type: Optional[OptimizationType] = Query(OptimizationType.BASIC, description="Optimization strategy to use")
+):
+    """
+    Optimize complete listing using strategy pattern
+    """
+    try:
+        # Prepare listing data for strategy pattern
+        listing_data = {
+            "title": request.title,
+            "description": request.description or "",
+            "category": request.category,
+            "keywords": request.keywords or []
+        }
+        
+        # Optimize using strategy pattern
+        result = optimizer.optimize_listing(listing_data, strategy_type)
+        
+        return {
+            "optimization_result": result,
+            "strategy_used": result["strategy_used"],
+            "strategy_type": result["strategy_type"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error optimizing complete listing: {str(e)}")
+
+
+@router.post("/export")
+async def export_listings(
+    listing_ids: List[str],
+    export_format: Optional[ExportFormat] = Query(ExportFormat.CSV, description="Export format to use"),
+    filename: Optional[str] = Query(None, description="Custom filename")
+):
+    """
+    Export listings using strategy pattern
+    """
+    try:
+        # Get listings data
+        all_listings = sheets_service.get_all_listings()
+        listings_to_export = [
+            listing for listing in all_listings
+            if listing.get('id') in listing_ids
+        ]
+        
+        if not listings_to_export:
+            raise HTTPException(status_code=404, detail="No listings found with provided IDs")
+        
+        # Export using strategy pattern
+        export_result = optimizer.export_data(
+            data=listings_to_export,
+            export_format=export_format,
+            filename=filename
+        )
+        
+        return {
+            "export_result": export_result,
+            "download_info": {
+                "filename": export_result["filename"],
+                "content_type": export_result["content_type"],
+                "record_count": export_result["record_count"],
+                "format_name": export_result["format_name"]
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting listings: {str(e)}")

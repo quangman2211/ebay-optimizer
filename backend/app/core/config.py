@@ -7,8 +7,19 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
+    # Security
+    SECRET_KEY: str = "your-secret-key-here"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Database
+    DATABASE_URL: str = "sqlite:///./ebay_optimizer.db"
+    
     # CORS
     BACKEND_CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:3001"]
+    
+    # Testing
+    TEST_MODE: bool = False
+    TESTING: bool = False
     
     # Google Sheets
     GOOGLE_SHEETS_CREDENTIALS_PATH: str = "credentials/google-service-account.json"

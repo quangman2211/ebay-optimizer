@@ -1,0 +1,1 @@
+# Core interfaces for SOLID architecture

@@ -56,7 +56,7 @@ async def get_sources(
         )
         
         # Convert SQLAlchemy models to Pydantic schemas
-        pydantic_sources = [Source.from_orm(source) for source in result["items"]]
+        pydantic_sources = [Source.model_validate(source) for source in result["items"]]
         
         # Return PaginatedResponse with converted items
         return {
@@ -130,7 +130,7 @@ async def create_source(
         source_id = f"source_{int(datetime.now().timestamp())}_{str(uuid.uuid4())[:8]}"
         
         # Create source data
-        source_data = source.dict()
+        source_data = source.model_dump()
         source_data['id'] = source_id
         
         # Create source với repository

@@ -5,7 +5,7 @@ Chứa tất cả database tables: Users, Listings, Orders, Sources, Accounts
 
 from sqlalchemy import (
     Boolean, Column, Integer, String, Text, Float, DateTime, 
-    JSON, ForeignKey, Enum as SQLEnum, Index
+    JSON, ForeignKey, Enum as SQLEnum, Index, DECIMAL, Date
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -17,10 +17,12 @@ from app.db.database import Base
 # Enums cho database
 class ListingStatusEnum(str, enum.Enum):
     DRAFT = "draft"
-    ACTIVE = "active" 
+    ACTIVE = "active"
+    OPTIMIZED = "optimized"
     ENDED = "ended"
     SOLD = "sold"
     ARCHIVED = "archived"
+    PENDING = "pending"
 
 
 class OrderStatusEnum(str, enum.Enum):
@@ -80,6 +82,26 @@ class SheetTypeEnum(str, enum.Enum):
     DRAFTS = "drafts"
 
 
+class UserRoleEnum(str, enum.Enum):
+    ADMIN = "ADMIN"
+    EBAY_MANAGER = "EBAY_MANAGER"
+    FULFILLMENT_STAFF = "FULFILLMENT_STAFF"
+
+
+class BlacklistStatusEnum(str, enum.Enum):
+    PENDING = "pending"
+    CLEAN = "clean"
+    FLAGGED = "flagged"
+    BLOCKED = "blocked"
+
+
+class SyncSourceEnum(str, enum.Enum):
+    MANUAL = "manual"
+    GOOGLE_SHEETS = "google_sheets"
+    API = "api"
+    EXISTING = "existing"
+
+
 # Database Models
 class User(Base):
     """User authentication và management"""
@@ -92,10 +114,13 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    role_id = Column(Integer, ForeignKey("user_roles.id"), nullable=True)
+    assigned_accounts = Column(JSON, nullable=True)  # eBay accounts assignment
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    role = relationship("UserRole", back_populates="users")
     listings = relationship("Listing", back_populates="user")
     accounts = relationship("Account", back_populates="user")
     draft_listings = relationship("DraftListing", back_populates="user")
@@ -224,15 +249,38 @@ class Order(Base):
     notes = Column(Text, nullable=True)
     machine = Column(String(50), nullable=True)  # Store identifier
     
+    # Multi-role Google Sheets integration fields
+    sync_source = Column(String(50), default='manual')  # 'google_sheets', 'manual', 'api'
+    sheets_row_id = Column(String(100), nullable=True)  # Track Google Sheets row
+    sheets_last_sync = Column(DateTime(timezone=True), nullable=True)  # Last sync timestamp
+    assigned_to_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Assigned fulfillment staff
+    assigned_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Who assigned the order
+    assignment_date = Column(DateTime(timezone=True), nullable=True)  # When assigned
+    blacklist_checked = Column(Boolean, default=False)  # Address blacklist status
+    blacklist_status = Column(String(20), nullable=True)  # 'clean', 'flagged', 'blocked'
+    blacklist_reason = Column(Text, nullable=True)  # Why flagged/blocked
+    fulfillment_notes = Column(Text, nullable=True)  # Notes from fulfillment staff
+    supplier_sent_date = Column(DateTime(timezone=True), nullable=True)  # When sent to supplier
+    supplier_name = Column(String(200), nullable=True)  # Which supplier used
+    tracking_added_to_ebay = Column(Boolean, default=False)  # Tracking synced to eBay
+    ebay_sync_status = Column(String(50), nullable=True)  # eBay sync status
+    last_status_change = Column(DateTime(timezone=True), nullable=True)  # Status change tracking
+    status_changed_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # Who changed status
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
     account = relationship("Account", back_populates="orders")
     listing = relationship("Listing", back_populates="orders")
     messages = relationship("Message", back_populates="order")
+    assigned_to_user = relationship("User", foreign_keys=[assigned_to_user_id])
+    assigned_by_user = relationship("User", foreign_keys=[assigned_by_user_id])
+    status_changed_by_user = relationship("User", foreign_keys=[status_changed_by])
+    order_status_history = relationship("OrderStatusHistory", back_populates="order")
+    order_items = relationship("OrderItem", back_populates="order")
     
     # Indexes
     __table_args__ = (
@@ -241,6 +289,11 @@ class Order(Base):
         Index('idx_order_date', 'order_date'),
         Index('idx_order_tracking', 'tracking_number'),
         Index('idx_order_ebay', 'ebay_order_id', 'ebay_transaction_id'),
+        Index('idx_orders_sync_source', 'sync_source'),
+        Index('idx_orders_sheets_row', 'sheets_row_id'),
+        Index('idx_orders_assigned_to', 'assigned_to_user_id'),
+        Index('idx_orders_blacklist', 'blacklist_status'),
+        Index('idx_orders_status_change', 'last_status_change'),
     )
 
 
@@ -303,27 +356,48 @@ class SourceProduct(Base):
     source_id = Column(String(100), ForeignKey("sources.id"), nullable=False)
     
     # Product Info (Import từ nhà cung cấp)
-    title = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    price = Column(Float, nullable=False)
     category = Column(String(100), nullable=True)
     brand = Column(String(100), nullable=True)
+    model = Column(String(100), nullable=True)
     sku = Column(String(100), nullable=True)
+    
+    # Pricing
+    source_price = Column(Float, nullable=False)
+    suggested_price = Column(Float, nullable=True)
+    market_price = Column(Float, nullable=True)
+    profit_margin = Column(Float, nullable=True)
+    
+    # Availability
+    in_stock = Column(Boolean, default=True)
+    stock_quantity = Column(Integer, default=0)
+    min_order_quantity = Column(Integer, default=1)
+    
+    # Source info
+    source_url = Column(String(500), nullable=True)
+    image_urls = Column(JSON, nullable=True)
+    specifications = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
+    
+    # Physical properties
+    weight = Column(Float, nullable=True)
+    dimensions = Column(JSON, nullable=True)
+    
+    # Analytics
+    views = Column(Integer, default=0)
+    conversions = Column(Integer, default=0)
+    roi = Column(Float, nullable=True)
     
     # Google Drive Images (Original từ supplier)
     gdrive_folder_url = Column(String(500), nullable=True)  # Link to Google Drive folder
     image_notes = Column(Text, nullable=True)  # "6 images, need watermark removal"
     
-    # Business
-    profit_margin = Column(Float, nullable=True)
-    suggested_ebay_price = Column(Float, nullable=True)
-    
-    # Availability
-    in_stock = Column(Boolean, default=True)
-    stock_quantity = Column(Integer, default=0)
-    
     # Status
     is_approved = Column(Boolean, default=False)  # Đã duyệt để tạo draft
+    
+    # Additional field for compatibility
+    title = Column(Text, nullable=True)  # Alternative name field
     
     # Relationships
     source = relationship("Source", back_populates="products")
@@ -368,6 +442,9 @@ class Account(Base):
     token_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Basic Metrics
+    health_score = Column(Float, default=0.0)
+    feedback_score = Column(Float, default=0.0)  
+    feedback_count = Column(Integer, default=0)
     total_listings = Column(Integer, default=0)
     active_listings = Column(Integer, default=0)
     total_sales = Column(Integer, default=0)
@@ -473,6 +550,367 @@ class ActivityLog(Base):
         Index('idx_activity_user_date', 'user_id', 'created_at'),
         Index('idx_activity_entity', 'entity_type', 'entity_id'),
         Index('idx_activity_action', 'action'),
+    )
+
+
+# ===========================================
+# SUPPLIER & PRODUCT MANAGEMENT MODELS
+# ===========================================
+
+class SupplierStatus(str, enum.Enum):
+    """Supplier status enum"""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
+    PENDING = "pending"
+    BLOCKED = "blocked"
+
+
+class ProductStatus(str, enum.Enum):
+    """Product status enum"""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    OUT_OF_STOCK = "out_of_stock"
+    DISCONTINUED = "discontinued"
+    PENDING = "pending"
+
+
+class PaymentTerms(str, enum.Enum):
+    """Payment terms enum"""
+    COD = "cod"  # Cash on delivery
+    NET_7 = "net_7"  # Payment within 7 days
+    NET_15 = "net_15"  # Payment within 15 days
+    NET_30 = "net_30"  # Payment within 30 days
+    PREPAID = "prepaid"  # Payment before delivery
+    CREDIT = "credit"  # Credit terms
+
+
+class Supplier(Base):
+    """Supplier management model"""
+    __tablename__ = "suppliers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Basic Information
+    supplier_code = Column(String(50), unique=True, index=True)  # NCC001, NCC002, etc.
+    company_name = Column(String(200), nullable=False, index=True)
+    business_name = Column(String(200), nullable=True)  # Tên giao dịch
+    
+    # Contact Information
+    contact_person = Column(String(100), nullable=True)
+    email = Column(String(100), nullable=True)
+    phone = Column(String(20), nullable=True)
+    website = Column(String(200), nullable=True)
+    
+    # Address Information
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    province = Column(String(100), nullable=True)
+    country = Column(String(100), default="Vietnam")
+    postal_code = Column(String(20), nullable=True)
+    
+    # Business Terms
+    payment_terms = Column(String(50), default="NET 30")
+    credit_limit = Column(DECIMAL(15, 2), default=0)
+    delivery_time_days = Column(Integer, default=7)  # Estimated delivery time
+    minimum_order_amount = Column(DECIMAL(10, 2), default=0)
+    
+    # Performance Metrics
+    performance_rating = Column(DECIMAL(3, 2), default=0.0)  # 0.00 to 5.00
+    reliability_score = Column(Integer, default=50)  # 0 to 100
+    quality_score = Column(Integer, default=50)  # 0 to 100
+    delivery_score = Column(Integer, default=50)  # 0 to 100
+    communication_score = Column(Integer, default=50)  # 0 to 100
+    
+    # Statistics
+    total_orders = Column(Integer, default=0)
+    total_order_value = Column(DECIMAL(15, 2), default=0)
+    successful_deliveries = Column(Integer, default=0)
+    late_deliveries = Column(Integer, default=0)
+    cancelled_orders = Column(Integer, default=0)
+    
+    # Status and Metadata
+    status = Column(String(20), default="active")
+    tax_id = Column(String(50), nullable=True)  # Mã số thuế
+    bank_account = Column(String(100), nullable=True)
+    bank_name = Column(String(100), nullable=True)
+    
+    # Additional Information
+    product_categories = Column(JSON, nullable=True)  # List of categories
+    certifications = Column(JSON, nullable=True)  # Quality certifications
+    notes = Column(Text, nullable=True)
+    internal_notes = Column(Text, nullable=True)  # Internal company notes
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_contact_date = Column(DateTime(timezone=True), nullable=True)
+    last_order_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    products = relationship("Product", back_populates="primary_supplier")
+    supplier_products = relationship("SupplierProduct", back_populates="supplier")
+    price_history = relationship("PriceHistory", back_populates="supplier")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_supplier_status', 'status'),
+        Index('idx_supplier_rating', 'performance_rating'),
+        Index('idx_supplier_company', 'company_name'),
+        Index('idx_supplier_contact', 'email'),
+    )
+
+
+class Product(Base):
+    """Product catalog model"""
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Product Identification
+    sku = Column(String(100), unique=True, index=True)  # Stock Keeping Unit
+    barcode = Column(String(50), nullable=True)  # EAN/UPC barcode
+    product_name = Column(String(200), nullable=False, index=True)
+    
+    # Category and Classification
+    category = Column(String(100), nullable=True, index=True)
+    subcategory = Column(String(100), nullable=True)
+    brand = Column(String(100), nullable=True, index=True)
+    model = Column(String(100), nullable=True)
+    
+    # Product Description
+    description = Column(Text, nullable=True)
+    short_description = Column(String(500), nullable=True)
+    specifications = Column(JSON, nullable=True)  # Technical specifications
+    
+    # Supplier Information
+    primary_supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+    supplier_sku = Column(String(100), nullable=True)  # Supplier's SKU
+    
+    # Pricing Information
+    cost_price = Column(DECIMAL(10, 2), nullable=False, default=0)
+    suggested_retail_price = Column(DECIMAL(10, 2), nullable=True)
+    current_sell_price = Column(DECIMAL(10, 2), nullable=True)
+    profit_margin_percent = Column(DECIMAL(5, 2), nullable=True)  # Calculated field
+    
+    # Inventory Information
+    stock_level = Column(Integer, default=0)
+    reserved_stock = Column(Integer, default=0)  # Orders not yet shipped
+    available_stock = Column(Integer, default=0)  # Calculated: stock_level - reserved
+    reorder_point = Column(Integer, default=10)  # When to reorder
+    max_stock_level = Column(Integer, default=100)
+    
+    # Physical Properties
+    weight_grams = Column(Integer, nullable=True)
+    length_cm = Column(DECIMAL(8, 2), nullable=True)
+    width_cm = Column(DECIMAL(8, 2), nullable=True)
+    height_cm = Column(DECIMAL(8, 2), nullable=True)
+    
+    # Sales Performance
+    total_sold = Column(Integer, default=0)
+    total_revenue = Column(DECIMAL(15, 2), default=0)
+    average_monthly_sales = Column(Integer, default=0)
+    last_sold_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Product Status and Lifecycle
+    status = Column(String(20), default="active")
+    is_featured = Column(Boolean, default=False)
+    is_seasonal = Column(Boolean, default=False)
+    season_start = Column(Date, nullable=True)
+    season_end = Column(Date, nullable=True)
+    
+    # SEO and Marketing
+    meta_title = Column(String(200), nullable=True)
+    meta_description = Column(String(500), nullable=True)
+    keywords = Column(JSON, nullable=True)  # SEO keywords
+    tags = Column(JSON, nullable=True)  # Product tags
+    
+    # Media
+    image_urls = Column(JSON, nullable=True)  # List of image URLs
+    video_url = Column(String(500), nullable=True)
+    
+    # Additional Information
+    lead_time_days = Column(Integer, default=1)  # Days to fulfill
+    warranty_period_days = Column(Integer, default=0)
+    return_policy_days = Column(Integer, default=30)
+    notes = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_restocked_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    primary_supplier = relationship("Supplier", back_populates="products")
+    supplier_products = relationship("SupplierProduct", back_populates="product")
+    price_history = relationship("PriceHistory", back_populates="product")
+    order_items = relationship("OrderItem", back_populates="product")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_product_status', 'status'),
+        Index('idx_product_category', 'category', 'subcategory'),
+        Index('idx_product_brand', 'brand'),
+        Index('idx_product_supplier', 'primary_supplier_id'),
+        Index('idx_product_stock', 'stock_level'),
+        Index('idx_product_price', 'current_sell_price'),
+    )
+
+
+class SupplierProduct(Base):
+    """Junction table for supplier-product relationships (M:N)"""
+    __tablename__ = "supplier_products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    
+    # Supplier-specific information
+    supplier_sku = Column(String(100), nullable=True)  # Supplier's product code
+    supplier_name = Column(String(200), nullable=True)  # Supplier's product name
+    supplier_description = Column(Text, nullable=True)
+    
+    # Pricing and Terms
+    supplier_price = Column(DECIMAL(10, 2), nullable=False)
+    minimum_order_quantity = Column(Integer, default=1)
+    price_per_unit = Column(DECIMAL(10, 2), nullable=True)
+    bulk_discount_qty = Column(Integer, nullable=True)
+    bulk_discount_price = Column(DECIMAL(10, 2), nullable=True)
+    
+    # Availability and Lead Time
+    is_available = Column(Boolean, default=True)
+    stock_quantity = Column(Integer, default=0)  # At supplier
+    lead_time_days = Column(Integer, default=7)
+    
+    # Performance Metrics
+    last_order_date = Column(DateTime(timezone=True), nullable=True)
+    total_orders = Column(Integer, default=0)
+    total_quantity_ordered = Column(Integer, default=0)
+    average_delivery_days = Column(Integer, default=0)
+    quality_rating = Column(DECIMAL(3, 2), default=0.0)  # 0.00 to 5.00
+    
+    # Status and Priority
+    is_preferred = Column(Boolean, default=False)  # Preferred supplier for this product
+    priority_rank = Column(Integer, default=1)  # 1 = highest priority
+    status = Column(String(20), default="active")  # active, inactive, discontinued
+    
+    # Additional Information
+    notes = Column(Text, nullable=True)
+    last_price_update = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    supplier = relationship("Supplier", back_populates="supplier_products")
+    product = relationship("Product", back_populates="supplier_products")
+    
+    # Unique constraint
+    __table_args__ = (
+        Index('idx_supplier_product', 'supplier_id', 'product_id', unique=True),
+        Index('idx_supplier_product_sku', 'supplier_id', 'supplier_sku'),
+        Index('idx_supplier_product_price', 'supplier_price'),
+        Index('idx_supplier_product_priority', 'priority_rank'),
+    )
+
+
+class PriceHistory(Base):
+    """Track price changes for products from suppliers"""
+    __tablename__ = "price_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    
+    # Price Information
+    old_price = Column(DECIMAL(10, 2), nullable=True)
+    new_price = Column(DECIMAL(10, 2), nullable=False)
+    price_change_amount = Column(DECIMAL(10, 2), nullable=True)  # new - old
+    price_change_percent = Column(DECIMAL(5, 2), nullable=True)  # % change
+    
+    # Change Context
+    change_reason = Column(String(200), nullable=True)  # "Market fluctuation", "Bulk discount", etc.
+    change_type = Column(String(20), nullable=True)  # "increase", "decrease", "initial"
+    
+    # Who made the change
+    changed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    change_source = Column(String(50), default="manual")  # "manual", "import", "api", "bulk_update"
+    
+    # Effective dates
+    effective_date = Column(DateTime(timezone=True), server_default=func.now())
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+    
+    # Additional context
+    notes = Column(Text, nullable=True)
+    external_reference = Column(String(100), nullable=True)  # Invoice number, etc.
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    product = relationship("Product", back_populates="price_history")
+    supplier = relationship("Supplier", back_populates="price_history")
+    changed_by_user = relationship("User")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_price_history_product', 'product_id', 'effective_date'),
+        Index('idx_price_history_supplier', 'supplier_id', 'effective_date'),
+        Index('idx_price_history_date', 'effective_date'),
+    )
+
+
+class OrderItem(Base):
+    """Individual items within an order"""
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(String(100), ForeignKey("orders.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    
+    # Product Information (at time of order)
+    product_sku = Column(String(100), nullable=True)
+    product_name = Column(String(200), nullable=False)
+    product_description = Column(Text, nullable=True)
+    
+    # Quantity and Pricing
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price = Column(DECIMAL(10, 2), nullable=False)  # Price per unit
+    unit_cost = Column(DECIMAL(10, 2), nullable=True)  # Cost per unit
+    total_price = Column(DECIMAL(10, 2), nullable=False)  # quantity * unit_price
+    total_cost = Column(DECIMAL(10, 2), nullable=True)  # quantity * unit_cost
+    profit_amount = Column(DECIMAL(10, 2), nullable=True)  # total_price - total_cost
+    
+    # Supplier Information
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+    supplier_sku = Column(String(100), nullable=True)
+    supplier_price = Column(DECIMAL(10, 2), nullable=True)
+    
+    # Fulfillment Status
+    status = Column(String(50), default="pending")  # pending, ordered, shipped, delivered, cancelled
+    ordered_from_supplier_date = Column(DateTime(timezone=True), nullable=True)
+    expected_delivery_date = Column(DateTime(timezone=True), nullable=True)
+    actual_delivery_date = Column(DateTime(timezone=True), nullable=True)
+    
+    # Additional Information
+    notes = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    order = relationship("Order", back_populates="order_items")
+    product = relationship("Product", back_populates="order_items")
+    supplier = relationship("Supplier")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_order_item_order', 'order_id'),
+        Index('idx_order_item_product', 'product_id'),
+        Index('idx_order_item_supplier', 'supplier_id'),
+        Index('idx_order_item_status', 'status'),
     )
 
 
@@ -620,4 +1058,88 @@ class AccountSheet(Base):
     __table_args__ = (
         Index('idx_sheet_account_type', 'account_id', 'sheet_type', unique=True),
         Index('idx_sheet_sync', 'auto_sync', 'last_sync'),
+    )
+
+
+# ===========================================
+# NEW MULTI-ROLE TABLES
+# ===========================================
+
+class UserRole(Base):
+    """User roles for multi-role system"""
+    __tablename__ = "user_roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    role_name = Column(String(50), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    permissions = Column(JSON, nullable=True)  # List of permissions
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    users = relationship("User", back_populates="role")
+
+
+class AddressBlacklist(Base):
+    """Address blacklist management"""
+    __tablename__ = "address_blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    address_pattern = Column(Text, nullable=False)
+    match_type = Column(String(20), default='contains')  # 'exact', 'contains', 'regex'
+    risk_level = Column(String(20), default='medium')   # 'low', 'medium', 'high', 'blocked'
+    reason = Column(Text, nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    created_by_user = relationship("User")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_blacklist_active', 'is_active'),
+    )
+
+
+class SheetsSyncLog(Base):
+    """Google Sheets sync tracking"""
+    __tablename__ = "sheets_sync_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sync_type = Column(String(50), nullable=True)  # 'import', 'export', 'status_update'
+    spreadsheet_id = Column(String(200), nullable=True)
+    sheet_name = Column(String(100), nullable=True)
+    rows_processed = Column(Integer, default=0)
+    rows_success = Column(Integer, default=0)
+    rows_error = Column(Integer, default=0)
+    error_details = Column(JSON, nullable=True)
+    started_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), default='running')  # 'running', 'completed', 'failed'
+    
+    # Relationships
+    started_by_user = relationship("User")
+
+
+class OrderStatusHistory(Base):
+    """Order status change history"""
+    __tablename__ = "order_status_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(String(100), ForeignKey("orders.id"), nullable=False)
+    old_status = Column(String(50), nullable=True)
+    new_status = Column(String(50), nullable=False)
+    changed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    change_reason = Column(Text, nullable=True)
+    additional_data = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    order = relationship("Order", back_populates="order_status_history")
+    changed_by_user = relationship("User")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_status_history_order', 'order_id'),
     )

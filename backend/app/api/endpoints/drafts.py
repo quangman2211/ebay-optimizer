@@ -275,7 +275,7 @@ async def update_draft_listing(
             )
         
         # Update fields
-        update_data = draft_data.dict(exclude_unset=True)
+        update_data = draft_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             if hasattr(draft, field):
                 setattr(draft, field, value)

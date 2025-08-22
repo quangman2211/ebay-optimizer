@@ -11,7 +11,7 @@ from app.schemas.schemas import (
     Account, AccountCreate, AccountUpdate, 
     AccountStatus, PaginatedResponse, APIResponse
 )
-from app.repositories import account_repo
+from app.repositories.account import account_repo
 from app.db.database import get_db
 from app.core.deps import get_current_user
 from app.models.database_models import User
@@ -58,7 +58,19 @@ async def get_accounts(
             user_id=current_user.id
         )
         
-        return result
+        # Convert SQLAlchemy models to Pydantic schemas
+        pydantic_accounts = [Account.model_validate(account) for account in result["items"]]
+        
+        # Return PaginatedResponse with converted items
+        return {
+            "items": pydantic_accounts,
+            "total": result["total"],
+            "page": result["page"],
+            "size": result["size"],
+            "pages": result["pages"],
+            "has_next": result["has_next"],
+            "has_prev": result["has_prev"]
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching accounts: {str(e)}")

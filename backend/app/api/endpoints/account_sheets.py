@@ -281,7 +281,7 @@ async def update_account_sheet(
             )
         
         # Update fields
-        update_data = sheet_data.dict(exclude_unset=True)
+        update_data = sheet_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             if field == 'headers' and value is not None:
                 # Convert headers to JSON string

@@ -275,7 +275,7 @@ async def update_message(
             )
         
         # Update fields
-        update_data = message_data.dict(exclude_unset=True)
+        update_data = message_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             if hasattr(message, field):
                 setattr(message, field, value)

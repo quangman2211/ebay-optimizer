@@ -120,14 +120,14 @@ class ExportService:
                     "Customer Name": order.customer_name or "",
                     "Customer Email": order.customer_email or "",
                     "Customer Phone": order.customer_phone or "",
-                    "Customer Type": order.customer_type or "",
+                    "Customer Type": "",  # Field not available in current model
                     "eBay Username": order.username_ebay or "",
                     "Product Name": order.product_name,
                     "Product Option": order.product_option or "",
                     "Price (eBay)": order.price_ebay or 0,
                     "Cost Price": order.price_cost or 0,
                     "Net Profit": order.net_profit or 0,
-                    "Fees": order.fees or 0,
+                    "Fees": order.ebay_fees or 0,
                     "Status": order.status.value,
                     "Order Date": order.order_date.strftime("%Y-%m-%d %H:%M:%S") if order.order_date else "",
                     "Expected Ship": order.expected_ship_date.strftime("%Y-%m-%d") if order.expected_ship_date else "",
@@ -205,7 +205,7 @@ class ExportService:
                 daily_metrics[date_key]["total_revenue"] += order.price_ebay or 0
                 daily_metrics[date_key]["total_cost"] += order.price_cost or 0
                 daily_metrics[date_key]["total_profit"] += order.net_profit or 0
-                daily_metrics[date_key]["total_fees"] += order.fees or 0
+                daily_metrics[date_key]["total_fees"] += order.ebay_fees or 0
             
             # Calculate averages
             for date_key in daily_metrics:
