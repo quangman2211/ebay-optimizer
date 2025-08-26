@@ -1,0 +1,81 @@
+{
+  "manifest_version": 3,
+  "name": "eBay CSV to Backend Processor",
+  "version": "3.0.0",
+  "description": "Process eBay CSV downloads and sync to backend server - No Google login required",
+  
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "notifications"
+  ],
+  
+  "host_permissions": [
+    "https://*.ebay.com/*",
+    "https://*.ebay.co.uk/*",
+    "http://localhost:8000/*",
+    "https://*.ngrok.io/*",
+    "https://*.ngrok-free.app/*",
+    "https://*.onrender.com/*",
+    "file://*/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.ebay.com/*", 
+        "https://*.ebay.co.uk/*", 
+        "file://*/*"
+      ],
+      "js": [
+        "backend-api-client.js",
+        "content-scripts/common.js",
+        "content-scripts/account-detector.js", 
+        "content-scripts/data-collector.js",
+        "content-scripts/csv-processor.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "eBay CSV Processor",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png", 
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png", 
+    "128": "assets/icon128.png"
+  },
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src http://localhost:* https://*.ngrok.io https://*.ngrok-free.app https://*.onrender.com;"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "backend-api-client.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+Item Number,Title,Custom Label,Available Quantity,Current Price,Sold Quantity,Watchers,Views,Category,Condition,Format
+ITEM-001,Test Product 1,LABEL-001,10,29.99,5,3,125,Electronics,New,Fixed Price
+ITEM-002,Test Product 2,LABEL-002,25,19.99,12,8,89,Home & Garden,Used,Fixed Price
+ITEM-003,Test Product 3,LABEL-003,5,49.99,2,15,234,Collectibles,New,Auction

@@ -1,0 +1,78 @@
+services:
+  # Main Web Service - FastAPI Backend
+  - type: web
+    name: ebay-optimizer-api
+    runtime: python
+    region: singapore  # Gần Vietnam nhất
+    plan: free  # Start với free tier
+    
+    # Build Configuration
+    buildCommand: "./build.sh"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    
+    # Health Check
+    healthCheckPath: /api/v1/health
+    
+    # Environment Variables
+    envVars:
+      # Database Connection (auto-injected by Render)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ebay-optimizer-db
+          property: connectionString
+      
+      # Application Settings
+      - key: ENVIRONMENT
+        value: production
+      
+      - key: API_V1_STR
+        value: /api/v1
+      
+      # Secret Key for JWT (generate với: openssl rand -hex 32)
+      - key: SECRET_KEY
+        generateValue: true
+      
+      # CORS Origins - Update với Chrome Extension ID của bạn
+      - key: BACKEND_CORS_ORIGINS
+        value: "http://localhost:3000,http://localhost:3001,chrome-extension://*"
+      
+      # Google Sheets Service Account (manual add in dashboard)
+      - key: GOOGLE_SHEETS_CREDENTIALS_PATH
+        value: /opt/render/project/src/credentials/google-service-account.json
+        
+      - key: SPREADSHEET_ID
+        value: "1Qx-G5SwGgr6F4deeHyI_zPEJbmAr3beG-wwNhfn1hmM"
+      
+      # API Keys for Chrome Extensions (comma-separated)
+      - key: EXTENSION_API_KEYS
+        sync: false  # Set manually in Render dashboard for security
+      
+      # Python Settings
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      
+      - key: PYTHON_VERSION
+        value: "3.11"
+
+    # Auto-Deploy from GitHub
+    autoDeploy: false  # Set to true after testing
+
+# Database Service
+databases:
+  - name: ebay-optimizer-db
+    region: singapore
+    plan: free  # PostgreSQL free tier
+    databaseName: ebay_optimizer
+    user: ebay_admin
+    
+    # Database settings
+    ipAllowList: []  # Allow connections from anywhere (Render handles security)
+
+# Environment Groups (optional - for shared secrets)
+envVarGroups:
+  - name: ebay-optimizer-secrets
+    envVars:
+      - key: GOOGLE_SERVICE_ACCOUNT_KEY
+        sync: false  # Must be set manually
+      - key: EXTENSION_API_KEYS
+        sync: false  # Must be set manually

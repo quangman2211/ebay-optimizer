@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBay CSV Processor</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#007bff">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <h1>eBay CSV Processor</h1>
+            </div>
+            <div class="version">v2.2.0</div>
+        </div>
+
+        <!-- Status Section -->
+        <div class="section">
+            <h2>📊 Status</h2>
+            <div class="status-grid">
+                <div class="status-item" id="connectionStatus">
+                    <span class="status-label">Connection</span>
+                    <span class="status-value" id="connectionValue">Checking...</span>
+                </div>
+                <div class="status-item" id="accountStatus">
+                    <span class="status-label">Account</span>
+                    <span class="status-value" id="accountValue">Detecting...</span>
+                </div>
+                <div class="status-item" id="sheetStatus">
+                    <span class="status-label">Google Sheets</span>
+                    <span class="status-value" id="sheetValue">Pending</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Info Section -->
+        <div class="section">
+            <h2>🔍 Current Account</h2>
+            <div class="account-info" id="accountInfo">
+                <div class="account-details">
+                    <div class="account-row">
+                        <span class="label">Account:</span>
+                        <span class="value" id="currentAccount">Not detected</span>
+                    </div>
+                    <div class="account-row">
+                        <span class="label">Sheet ID:</span>
+                        <span class="value sheet-id" id="currentSheetId">Not configured</span>
+                    </div>
+                    <div class="account-row">
+                        <span class="label">Type:</span>
+                        <span class="value" id="accountType">Unknown</span>
+                    </div>
+                </div>
+                <button class="btn-small" id="refreshAccountBtn">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- CSV Processing Section -->
+        <div class="section">
+            <h2>📥 CSV Processing</h2>
+            <div class="csv-status" id="csvStatus">
+                <div class="csv-info">
+                    <div class="csv-stat">
+                        <span class="stat-label">Last Processed:</span>
+                        <span class="stat-value" id="lastProcessed">None</span>
+                    </div>
+                    <div class="csv-stat">
+                        <span class="stat-label">Records Processed:</span>
+                        <span class="stat-value" id="recordsProcessed">0</span>
+                    </div>
+                    <div class="csv-stat">
+                        <span class="stat-label">Success Rate:</span>
+                        <span class="stat-value" id="successRate">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Testing Section -->
+        <div class="section">
+            <h2>🧪 Manual Testing</h2>
+            <div class="test-controls">
+                <button class="btn-primary" id="testCSVBtn">
+                    📄 Test CSV Processing
+                </button>
+                <button class="btn-secondary" id="testSheetsBtn">
+                    📊 Test Sheets Connection
+                </button>
+                <button class="btn-secondary" id="simulateDownloadBtn">
+                    📥 Simulate Download
+                </button>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="section">
+            <h2>📝 Recent Activity</h2>
+            <div class="logs-container">
+                <div class="logs" id="recentLogs">
+                    <div class="log-item">
+                        <span class="log-time">--:--</span>
+                        <span class="log-message">Extension initialized</span>
+                    </div>
+                </div>
+                <button class="btn-small" id="clearLogsBtn">🗑️ Clear</button>
+            </div>
+        </div>
+
+        <!-- Quick Actions Section -->
+        <div class="section">
+            <h2>⚡ Quick Actions</h2>
+            <div class="quick-actions">
+                <button class="btn-action" id="openSimulatorBtn">
+                    🖥️ Open Simulator
+                </button>
+                <button class="btn-action" id="viewSheetsBtn">
+                    📊 View Google Sheets
+                </button>
+                <button class="btn-action" id="exportLogsBtn">
+                    💾 Export Logs
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="section collapsed">
+            <h2 class="collapsible" id="settingsToggle">⚙️ Settings</h2>
+            <div class="settings-content" id="settingsContent">
+                <div class="setting-item">
+                    <label for="debugMode">Debug Mode:</label>
+                    <input type="checkbox" id="debugMode" checked>
+                </div>
+                <div class="setting-item">
+                    <label for="autoProcess">Auto Process CSV:</label>
+                    <input type="checkbox" id="autoProcess" checked>
+                </div>
+                <div class="setting-item">
+                    <label for="notifications">Show Notifications:</label>
+                    <input type="checkbox" id="notifications" checked>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="#" id="helpBtn">Help</a>
+                <span>•</span>
+                <a href="#" id="aboutBtn">About</a>
+                <span>•</span>
+                <a href="#" id="feedbackBtn">Feedback</a>
+            </div>
+            <div class="footer-status">
+                Status: <span id="extensionStatus" class="status-ok">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden test data for manual testing -->
+    <div id="testData" style="display: none;">
+        <textarea id="mockCSVData">"Sales Record Number","Order Number","Buyer Username","Buyer Name","Buyer Email","Item Number","Item Title","Custom Label","Quantity","Sold For","Total Price","Sale Date","Paid On Date","Ship By Date","Tracking Number"
+"239","18-13469-81867","marcelink-0","mark celinko","markcelinko@yahoo.com","357489760137","NEW Spider Farmer GGS Controller & 530W Heater w/ Bluetooth & WiFi Connectivity","SpiderFarmer","1","$89.00","$96.23","Aug-21-25","Aug-21-25","Sep-01-25",""
+"237","21-13446-31215","ammart05","Allison Price","0081ce6ad64040e59a69@members.ebay.com","357467100760","NEW Harry Potter and the Order of the Phoenix-Illustrated Book-5; 9780545791434","Scholastic","1","$42.00","$46.20","Aug-17-25","Aug-17-25","Aug-25-25",""</textarea>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

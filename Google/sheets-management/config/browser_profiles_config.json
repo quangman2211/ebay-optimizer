@@ -1,0 +1,818 @@
+{
+  "browser_profiles": {
+    "1": {
+      "account_id": 1,
+      "ebay_username": "seller_prime_001",
+      "profile_name": "Profile_001",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_001",
+      "vps_server": "VPS_1",
+      "sheet_id": "1ABC_SHEET_ID_001",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_California",
+        "provider": "residential_001"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1920x1080",
+        "timezone": "America/Los_Angeles"
+      },
+      "schedule": {
+        "collection_times": ["08:00", "14:00", "20:00"],
+        "timezone": "America/Los_Angeles",
+        "auto_start": true
+      }
+    },
+    "2": {
+      "account_id": 2,
+      "ebay_username": "powerstore_002",
+      "profile_name": "Profile_002",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_002",
+      "vps_server": "VPS_1",
+      "sheet_id": "1DEF_SHEET_ID_002",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Nevada",
+        "provider": "residential_002"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 119",
+        "screen_resolution": "1366x768",
+        "timezone": "America/Los_Angeles"
+      },
+      "schedule": {
+        "collection_times": ["09:00", "15:00", "21:00"],
+        "timezone": "America/Los_Angeles",
+        "auto_start": true
+      }
+    },
+    "3": {
+      "account_id": 3,
+      "ebay_username": "megadeals_003",
+      "profile_name": "Profile_003",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_003",
+      "vps_server": "VPS_1",
+      "sheet_id": "1GHI_SHEET_ID_003",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Texas",
+        "provider": "datacenter_001"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "2560x1440",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["10:00", "16:00", "22:00"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "4": {
+      "account_id": 4,
+      "ebay_username": "topbargains_004",
+      "profile_name": "Profile_004",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_004",
+      "vps_server": "VPS_1",
+      "sheet_id": "1JKL_SHEET_ID_004",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Florida",
+        "provider": "residential_003"
+      },
+      "fingerprint_config": {
+        "os": "macOS 14",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1440x900",
+        "timezone": "America/New_York"
+      },
+      "schedule": {
+        "collection_times": ["07:30", "13:30", "19:30"],
+        "timezone": "America/New_York",
+        "auto_start": true
+      }
+    },
+    "5": {
+      "account_id": 5,
+      "ebay_username": "quickseller_005",
+      "profile_name": "Profile_005",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_005",
+      "vps_server": "VPS_1",
+      "sheet_id": "1MNO_SHEET_ID_005",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Arizona",
+        "provider": "residential_004"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 118",
+        "screen_resolution": "1680x1050",
+        "timezone": "America/Phoenix"
+      },
+      "schedule": {
+        "collection_times": ["08:45", "14:45", "20:45"],
+        "timezone": "America/Phoenix",
+        "auto_start": true
+      }
+    },
+    "6": {
+      "account_id": 6,
+      "ebay_username": "elitestore_006",
+      "profile_name": "Profile_006",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_006",
+      "vps_server": "VPS_1",
+      "sheet_id": "1PQR_SHEET_ID_006",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Oregon",
+        "provider": "datacenter_002"
+      },
+      "fingerprint_config": {
+        "os": "Ubuntu 22.04",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "1920x1200",
+        "timezone": "America/Los_Angeles"
+      },
+      "schedule": {
+        "collection_times": ["09:15", "15:15", "21:15"],
+        "timezone": "America/Los_Angeles",
+        "auto_start": true
+      }
+    },
+    "7": {
+      "account_id": 7,
+      "ebay_username": "smartseller_007",
+      "profile_name": "Profile_007",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_007",
+      "vps_server": "VPS_2",
+      "sheet_id": "1STU_SHEET_ID_007",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Illinois",
+        "provider": "residential_005"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1920x1080",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["08:00", "14:00", "20:00"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "8": {
+      "account_id": 8,
+      "ebay_username": "fasttrack_008",
+      "profile_name": "Profile_008",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_008",
+      "vps_server": "VPS_2",
+      "sheet_id": "1VWX_SHEET_ID_008",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Michigan",
+        "provider": "residential_006"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 119",
+        "screen_resolution": "1366x768",
+        "timezone": "America/Detroit"
+      },
+      "schedule": {
+        "collection_times": ["09:00", "15:00", "21:00"],
+        "timezone": "America/Detroit",
+        "auto_start": true
+      }
+    },
+    "9": {
+      "account_id": 9,
+      "ebay_username": "prodealer_009",
+      "profile_name": "Profile_009",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_009",
+      "vps_server": "VPS_2",
+      "sheet_id": "1YZA_SHEET_ID_009",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Ohio",
+        "provider": "datacenter_003"
+      },
+      "fingerprint_config": {
+        "os": "macOS 13",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "2560x1600",
+        "timezone": "America/New_York"
+      },
+      "schedule": {
+        "collection_times": ["10:00", "16:00", "22:00"],
+        "timezone": "America/New_York",
+        "auto_start": true
+      }
+    },
+    "10": {
+      "account_id": 10,
+      "ebay_username": "maxstore_010",
+      "profile_name": "Profile_010",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_010",
+      "vps_server": "VPS_2",
+      "sheet_id": "1BCD_SHEET_ID_010",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Georgia",
+        "provider": "residential_007"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1440x900",
+        "timezone": "America/New_York"
+      },
+      "schedule": {
+        "collection_times": ["07:30", "13:30", "19:30"],
+        "timezone": "America/New_York",
+        "auto_start": true
+      }
+    },
+    "11": {
+      "account_id": 11,
+      "ebay_username": "superseller_011",
+      "profile_name": "Profile_011",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_011",
+      "vps_server": "VPS_2",
+      "sheet_id": "1EFG_SHEET_ID_011",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Virginia",
+        "provider": "residential_008"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 118",
+        "screen_resolution": "1680x1050",
+        "timezone": "America/New_York"
+      },
+      "schedule": {
+        "collection_times": ["08:45", "14:45", "20:45"],
+        "timezone": "America/New_York",
+        "auto_start": true
+      }
+    },
+    "12": {
+      "account_id": 12,
+      "ebay_username": "topchoice_012",
+      "profile_name": "Profile_012",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_012",
+      "vps_server": "VPS_2",
+      "sheet_id": "1HIJ_SHEET_ID_012",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Pennsylvania",
+        "provider": "datacenter_004"
+      },
+      "fingerprint_config": {
+        "os": "Ubuntu 20.04",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "1920x1200",
+        "timezone": "America/New_York"
+      },
+      "schedule": {
+        "collection_times": ["09:15", "15:15", "21:15"],
+        "timezone": "America/New_York",
+        "auto_start": true
+      }
+    },
+    "13": {
+      "account_id": 13,
+      "ebay_username": "golddeals_013",
+      "profile_name": "Profile_013",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_013",
+      "vps_server": "VPS_3",
+      "sheet_id": "1KLM_SHEET_ID_013",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Colorado",
+        "provider": "residential_009"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1920x1080",
+        "timezone": "America/Denver"
+      },
+      "schedule": {
+        "collection_times": ["08:00", "14:00", "20:00"],
+        "timezone": "America/Denver",
+        "auto_start": true
+      }
+    },
+    "14": {
+      "account_id": 14,
+      "ebay_username": "flexstore_014",
+      "profile_name": "Profile_014",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_014",
+      "vps_server": "VPS_3",
+      "sheet_id": "1NOP_SHEET_ID_014",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Utah",
+        "provider": "residential_010"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 119",
+        "screen_resolution": "1366x768",
+        "timezone": "America/Denver"
+      },
+      "schedule": {
+        "collection_times": ["09:00", "15:00", "21:00"],
+        "timezone": "America/Denver",
+        "auto_start": true
+      }
+    },
+    "15": {
+      "account_id": 15,
+      "ebay_username": "powerstore_015",
+      "profile_name": "Profile_015",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_015",
+      "vps_server": "VPS_3",
+      "sheet_id": "1QRS_SHEET_ID_015",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Montana",
+        "provider": "datacenter_005"
+      },
+      "fingerprint_config": {
+        "os": "macOS 14",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "2560x1440",
+        "timezone": "America/Denver"
+      },
+      "schedule": {
+        "collection_times": ["10:00", "16:00", "22:00"],
+        "timezone": "America/Denver",
+        "auto_start": true
+      }
+    },
+    "16": {
+      "account_id": 16,
+      "ebay_username": "titandeals_016",
+      "profile_name": "Profile_016",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_016",
+      "vps_server": "VPS_3",
+      "sheet_id": "1TUV_SHEET_ID_016",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Wyoming",
+        "provider": "residential_011"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1440x900",
+        "timezone": "America/Denver"
+      },
+      "schedule": {
+        "collection_times": ["07:30", "13:30", "19:30"],
+        "timezone": "America/Denver",
+        "auto_start": true
+      }
+    },
+    "17": {
+      "account_id": 17,
+      "ebay_username": "megaseller_017",
+      "profile_name": "Profile_017",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_017",
+      "vps_server": "VPS_3",
+      "sheet_id": "1WXY_SHEET_ID_017",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_NewMexico",
+        "provider": "residential_012"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 118",
+        "screen_resolution": "1680x1050",
+        "timezone": "America/Denver"
+      },
+      "schedule": {
+        "collection_times": ["08:45", "14:45", "20:45"],
+        "timezone": "America/Denver",
+        "auto_start": true
+      }
+    },
+    "18": {
+      "account_id": 18,
+      "ebay_username": "ultrapro_018",
+      "profile_name": "Profile_018",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_018",
+      "vps_server": "VPS_3",
+      "sheet_id": "1ZAB_SHEET_ID_018",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Kansas",
+        "provider": "datacenter_006"
+      },
+      "fingerprint_config": {
+        "os": "Ubuntu 22.04",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "1920x1200",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["09:15", "15:15", "21:15"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "19": {
+      "account_id": 19,
+      "ebay_username": "premiumstore_019",
+      "profile_name": "Profile_019",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_019",
+      "vps_server": "VPS_4",
+      "sheet_id": "1CDE_SHEET_ID_019",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Washington",
+        "provider": "residential_013"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1920x1080",
+        "timezone": "America/Los_Angeles"
+      },
+      "schedule": {
+        "collection_times": ["08:00", "14:00", "20:00"],
+        "timezone": "America/Los_Angeles",
+        "auto_start": true
+      }
+    },
+    "20": {
+      "account_id": 20,
+      "ebay_username": "lightning_020",
+      "profile_name": "Profile_020",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_020",
+      "vps_server": "VPS_4",
+      "sheet_id": "1FGH_SHEET_ID_020",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Idaho",
+        "provider": "residential_014"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 119",
+        "screen_resolution": "1366x768",
+        "timezone": "America/Boise"
+      },
+      "schedule": {
+        "collection_times": ["09:00", "15:00", "21:00"],
+        "timezone": "America/Boise",
+        "auto_start": true
+      }
+    },
+    "21": {
+      "account_id": 21,
+      "ebay_username": "diamondstore_021",
+      "profile_name": "Profile_021",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_021",
+      "vps_server": "VPS_4",
+      "sheet_id": "1IJK_SHEET_ID_021",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Alaska",
+        "provider": "datacenter_007"
+      },
+      "fingerprint_config": {
+        "os": "macOS 13",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "2560x1600",
+        "timezone": "America/Anchorage"
+      },
+      "schedule": {
+        "collection_times": ["10:00", "16:00", "22:00"],
+        "timezone": "America/Anchorage",
+        "auto_start": true
+      }
+    },
+    "22": {
+      "account_id": 22,
+      "ebay_username": "protrader_022",
+      "profile_name": "Profile_022",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_022",
+      "vps_server": "VPS_4",
+      "sheet_id": "1LMN_SHEET_ID_022",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Hawaii",
+        "provider": "residential_015"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1440x900",
+        "timezone": "Pacific/Honolulu"
+      },
+      "schedule": {
+        "collection_times": ["07:30", "13:30", "19:30"],
+        "timezone": "Pacific/Honolulu",
+        "auto_start": true
+      }
+    },
+    "23": {
+      "account_id": 23,
+      "ebay_username": "speedseller_023",
+      "profile_name": "Profile_023",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_023",
+      "vps_server": "VPS_4",
+      "sheet_id": "1OPQ_SHEET_ID_023",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Wisconsin",
+        "provider": "residential_016"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 118",
+        "screen_resolution": "1680x1050",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["08:45", "14:45", "20:45"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "24": {
+      "account_id": 24,
+      "ebay_username": "elitepro_024",
+      "profile_name": "Profile_024",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_024",
+      "vps_server": "VPS_4",
+      "sheet_id": "1RST_SHEET_ID_024",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Minnesota",
+        "provider": "datacenter_008"
+      },
+      "fingerprint_config": {
+        "os": "Ubuntu 20.04",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "1920x1200",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["09:15", "15:15", "21:15"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "25": {
+      "account_id": 25,
+      "ebay_username": "maxpro_025",
+      "profile_name": "Profile_025",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_025",
+      "vps_server": "VPS_5",
+      "sheet_id": "1UVW_SHEET_ID_025",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Iowa",
+        "provider": "residential_017"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1920x1080",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["08:00", "14:00", "20:00"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "26": {
+      "account_id": 26,
+      "ebay_username": "ultradeals_026",
+      "profile_name": "Profile_026",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_026",
+      "vps_server": "VPS_5",
+      "sheet_id": "1XYZ_SHEET_ID_026",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Missouri",
+        "provider": "residential_018"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 119",
+        "screen_resolution": "1366x768",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["09:00", "15:00", "21:00"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "27": {
+      "account_id": 27,
+      "ebay_username": "toptrader_027",
+      "profile_name": "Profile_027",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_027",
+      "vps_server": "VPS_5",
+      "sheet_id": "1AAA_SHEET_ID_027",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Arkansas",
+        "provider": "datacenter_009"
+      },
+      "fingerprint_config": {
+        "os": "macOS 14",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "2560x1440",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["10:00", "16:00", "22:00"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "28": {
+      "account_id": 28,
+      "ebay_username": "giantstore_028",
+      "profile_name": "Profile_028",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_028",
+      "vps_server": "VPS_5",
+      "sheet_id": "1BBB_SHEET_ID_028",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Louisiana",
+        "provider": "residential_019"
+      },
+      "fingerprint_config": {
+        "os": "Windows 11",
+        "browser_version": "Chrome 120",
+        "screen_resolution": "1440x900",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["07:30", "13:30", "19:30"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "29": {
+      "account_id": 29,
+      "ebay_username": "kingdealer_029",
+      "profile_name": "Profile_029",
+      "browser_type": "hidemyacc",
+      "profile_id": "hidemyacc_profile_029",
+      "vps_server": "VPS_5",
+      "sheet_id": "1CCC_SHEET_ID_029",
+      "proxy_config": {
+        "proxy_type": "residential",
+        "location": "US_Mississippi",
+        "provider": "residential_020"
+      },
+      "fingerprint_config": {
+        "os": "Windows 10",
+        "browser_version": "Chrome 118",
+        "screen_resolution": "1680x1050",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["08:45", "14:45", "20:45"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    },
+    "30": {
+      "account_id": 30,
+      "ebay_username": "supremestore_030",
+      "profile_name": "Profile_030",
+      "browser_type": "multilogin",
+      "profile_id": "multilogin_profile_030",
+      "vps_server": "VPS_5",
+      "sheet_id": "1DDD_SHEET_ID_030",
+      "proxy_config": {
+        "proxy_type": "datacenter",
+        "location": "US_Alabama",
+        "provider": "datacenter_010"
+      },
+      "fingerprint_config": {
+        "os": "Ubuntu 22.04",
+        "browser_version": "Chrome 121",
+        "screen_resolution": "1920x1200",
+        "timezone": "America/Chicago"
+      },
+      "schedule": {
+        "collection_times": ["09:15", "15:15", "21:15"],
+        "timezone": "America/Chicago",
+        "auto_start": true
+      }
+    }
+  },
+  "vps_distribution": {
+    "VPS_1": {
+      "accounts": [1, 2, 3, 4, 5, 6],
+      "ip_address": "123.456.789.001",
+      "location": "US West Coast",
+      "max_concurrent_profiles": 6,
+      "resources": {
+        "cpu": "8 cores",
+        "ram": "16GB",
+        "storage": "500GB SSD"
+      }
+    },
+    "VPS_2": {
+      "accounts": [7, 8, 9, 10, 11, 12],
+      "ip_address": "123.456.789.002",
+      "location": "US Central",
+      "max_concurrent_profiles": 6,
+      "resources": {
+        "cpu": "8 cores",
+        "ram": "16GB",
+        "storage": "500GB SSD"
+      }
+    },
+    "VPS_3": {
+      "accounts": [13, 14, 15, 16, 17, 18],
+      "ip_address": "123.456.789.003",
+      "location": "US Mountain",
+      "max_concurrent_profiles": 6,
+      "resources": {
+        "cpu": "8 cores",
+        "ram": "16GB",
+        "storage": "500GB SSD"
+      }
+    },
+    "VPS_4": {
+      "accounts": [19, 20, 21, 22, 23, 24],
+      "ip_address": "123.456.789.004",
+      "location": "US West Coast 2",
+      "max_concurrent_profiles": 6,
+      "resources": {
+        "cpu": "8 cores",
+        "ram": "16GB",
+        "storage": "500GB SSD"
+      }
+    },
+    "VPS_5": {
+      "accounts": [25, 26, 27, 28, 29, 30],
+      "ip_address": "123.456.789.005",
+      "location": "US South",
+      "max_concurrent_profiles": 6,
+      "resources": {
+        "cpu": "8 cores",
+        "ram": "16GB",
+        "storage": "500GB SSD"
+      }
+    }
+  },
+  "automation_settings": {
+    "auto_start_profiles": true,
+    "sync_interval_minutes": 300,
+    "max_retries": 3,
+    "error_notification": true,
+    "log_level": "INFO"
+  }
+}

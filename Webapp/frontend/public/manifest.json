@@ -1,0 +1,21 @@
+{
+  "short_name": "eBay Optimizer",
+  "name": "eBay Listing Optimizer",
+  "description": "Hệ thống quản lý và tối ưu hóa listing eBay",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
+  "lang": "vi",
+  "scope": "/",
+  "id": "ebay-optimizer-webapp"
+}

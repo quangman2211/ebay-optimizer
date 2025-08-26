@@ -1,0 +1,31 @@
+{
+  "name": "ebay-optimizer-webapp-testing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright E2E testing suite for eBay Optimizer",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "test:auth": "playwright test tests/e2e/auth",
+    "test:api": "playwright test tests/e2e/api",
+    "test:api-only": "playwright test --config=playwright-api.config.js",
+    "test:journey": "playwright test tests/e2e/user-journey.spec.js",
+    "test:chrome": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project='Mobile Chrome'",
+    "playwright:install": "playwright install",
+    "playwright:install-deps": "playwright install-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  },
+  "keywords": ["playwright", "e2e", "testing", "ebay-optimizer"],
+  "author": "eBay Optimizer Team",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
